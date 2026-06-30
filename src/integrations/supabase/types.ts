@@ -14,16 +14,170 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      jobs_extracted: {
+        Row: {
+          assigned_technician_id: string | null
+          created_at: string
+          damage_pins_coordinates: Json | null
+          extracted_json: Json
+          id: string
+          pdf_document_url: string | null
+          session_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_technician_id?: string | null
+          created_at?: string
+          damage_pins_coordinates?: Json | null
+          extracted_json: Json
+          id?: string
+          pdf_document_url?: string | null
+          session_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_technician_id?: string | null
+          created_at?: string
+          damage_pins_coordinates?: Json | null
+          extracted_json?: Json
+          id?: string
+          pdf_document_url?: string | null
+          session_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_extracted_assigned_technician_id_fkey"
+            columns: ["assigned_technician_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_extracted_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      sessions: {
+        Row: {
+          audio_storage_url: string | null
+          client_name: string
+          created_at: string
+          id: string
+          is_emergency: boolean
+          raw_transcript: string | null
+          user_id: string | null
+        }
+        Insert: {
+          audio_storage_url?: string | null
+          client_name: string
+          created_at?: string
+          id?: string
+          is_emergency?: boolean
+          raw_transcript?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          audio_storage_url?: string | null
+          client_name?: string
+          created_at?: string
+          id?: string
+          is_emergency?: boolean
+          raw_transcript?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      signatures: {
+        Row: {
+          drawn_signature_url: string | null
+          id: string
+          job_id: string | null
+          signed_at: string
+          voice_signature_hash: string
+        }
+        Insert: {
+          drawn_signature_url?: string | null
+          id?: string
+          job_id?: string | null
+          signed_at?: string
+          voice_signature_hash: string
+        }
+        Update: {
+          drawn_signature_url?: string | null
+          id?: string
+          job_id?: string | null
+          signed_at?: string
+          voice_signature_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signatures_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs_extracted"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "client" | "technician" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +304,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["client", "technician", "admin"],
+    },
   },
 } as const
