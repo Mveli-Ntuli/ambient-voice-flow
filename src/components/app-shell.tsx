@@ -11,12 +11,18 @@ import {
 } from "lucide-react";
 import { useDemoAuth } from "./auth-gate";
 
-const NAV = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  end?: boolean;
+};
+const NAV: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/history", label: "Intake History", icon: History },
   { to: "/prompt-lab", label: "Prompt Lab", icon: FlaskConical },
   { to: "/settings", label: "Settings & Team", icon: Settings },
-] as const;
+];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
