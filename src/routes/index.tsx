@@ -1379,21 +1379,181 @@ function JobCard({
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
     setDone(false);
     setExporting(true);
-    setProgress(0);
-    const id = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) {
-          clearInterval(id);
-          setExporting(false);
-          setDone(true);
-          return 100;
+    setProgress(5);
+
+    // Animate progress optimistically
+    const tick = setInterval(() => {
+      setProgress((p) => (p < 85 ? p + Math.random() * 6 + 2 : p));
+    }, 140);
+
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const marginX = 48;
+      let y = 56;
+
+      // Header
+      doc.setFillColor(9, 13, 22);
+      doc.rect(0, 0, pageW, 90, "F");
+      doc.setTextColor(16, 185, 129);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(mode.docTitle.toUpperCase(), marginX, 46);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.text(mode.docNumber, marginX, 72);
+      doc.setTextColor(200, 210, 220);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      const status = extracted.urgency ? mode.docFooter : "Pending capture";
+      doc.text(status.toUpperCase(), pageW - marginX, 46, { align: "right" });
+      doc.setFontSize(9);
+      doc.text("Generated " + new Date().toLocaleString(), pageW - marginX, 72, { align: "right" });
+
+      y = 130;
+      doc.setTextColor(30, 41, 59);
+
+      // Row helper
+      const row = (label: string, value: string) => {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 130, 145);
+        doc.text(label.toUpperCase(), marginX, y);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(20, 25, 40);
+        doc.text(String(value || "—"), marginX, y + 14);
+        y += 34;
+      };
+      const twoCol = (l1: string, v1: string, l2: string, v2: string) => {
+        const midX = pageW / 2;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 130, 145);
+        doc.text(l1.toUpperCase(), marginX, y);
+        doc.text(l2.toUpperCase(), midX, y);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(20, 25, 40);
+        doc.text(String(v1 || "—"), marginX, y + 14, { maxWidth: (pageW / 2) - marginX - 12 });
+        doc.text(String(v2 || "—"), midX, y + 14, { maxWidth: (pageW / 2) - marginX - 12 });
+        y += 36;
+      };
+
+      twoCol(mode.fields.name.label, extracted.name ?? "—", mode.docContactLabel, mode.docContactValue);
+      twoCol(mode.fields.location.label, extracted.location ?? "—", mode.fields.urgency.label, extracted.urgency ?? "—");
+      row(mode.fields.classification.label, extracted.classification ?? "—");
+
+      // Divider
+      doc.setDrawColor(220, 226, 235);
+      doc.line(marginX, y, pageW - marginX, y);
+      y += 24;
+
+      // Transcript
+      doc.setFontSize(8);
+      doc.setTextColor(120, 130, 145);
+      doc.setFont("helvetica", "normal");
+      doc.text("VOICE TRANSCRIPT", marginX, y);
+      y += 14;
+      doc.setFontSize(10);
+      doc.setTextColor(40, 50, 65);
+      const lines = doc.splitTextToSize(extracted.transcript || "Awaiting voice capture…", pageW - marginX * 2);
+      doc.text(lines, marginX, y);
+      y += lines.length * 13 + 18;
+
+      doc.line(marginX, y, pageW - marginX, y);
+      y += 20;
+
+      // Pins
+      doc.setFontSize(8);
+      doc.setTextColor(120, 130, 145);
+      doc.text(`${mode.schematic === "car" ? "VEHICLE DAMAGE MAP" : "DAMAGE MAP"} · ${pins.length} PIN${pins.length === 1 ? "" : "S"}`, marginX, y);
+      y += 14;
+      doc.setFontSize(10);
+      doc.setTextColor(40, 50, 65);
+      if (pins.length === 0) {
+        doc.setTextColor(150, 155, 165);
+        doc.text("No damage points pinned.", marginX, y);
+        y += 16;
+      } else {
+        for (const p of pins) {
+          doc.setFillColor(239, 68, 68);
+          doc.circle(marginX + 3, y - 3, 2.5, "F");
+          doc.setTextColor(40, 50, 65);
+          doc.text(`${p.label}  (${p.x.toFixed(0)}%, ${p.y.toFixed(0)}%)`, marginX + 14, y);
+          y += 15;
         }
-        return p + Math.random() * 8 + 2;
-      });
-    }, 120);
+      }
+      y += 18;
+
+      // Pin map thumbnail
+      const pinThumb = thumbnails.find((t) => t.label.startsWith("Pin map"));
+      if (pinThumb && pinThumb.src.startsWith("data:image/svg+xml")) {
+        // Convert svg data URL to PNG via canvas for jspdf
+        try {
+          const svgText = decodeURIComponent(pinThumb.src.split(",")[1]);
+          const png = await svgToPng(svgText, 400, 300);
+          doc.addImage(png, "PNG", marginX, y, 220, 165);
+          y += 180;
+        } catch { /* skip */ }
+      }
+
+      // Signature
+      if (y > 640) { doc.addPage(); y = 56; }
+      doc.setDrawColor(220, 226, 235);
+      doc.line(marginX, y, pageW - marginX, y);
+      y += 20;
+      doc.setFontSize(8);
+      doc.setTextColor(120, 130, 145);
+      doc.text("SIGNATURE", marginX, y);
+      y += 12;
+      if (signatureData) {
+        try {
+          doc.addImage(signatureData, "PNG", marginX, y, 180, 60);
+        } catch { /* ignore */ }
+      } else {
+        doc.setTextColor(150, 155, 165);
+        doc.setFontSize(10);
+        doc.text("(pending)", marginX, y + 20);
+      }
+      doc.setFontSize(9);
+      doc.setTextColor(60, 70, 90);
+      doc.text(`${extracted.name ?? "Pending"} · ${voicePrintHash ? "voiceprint verified" : "biometric pending"}`, marginX, y + 78);
+
+      doc.setFontSize(8);
+      doc.setTextColor(120, 130, 145);
+      doc.text("AUTHORISATION", pageW - marginX, y, { align: "right" });
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(20, 25, 40);
+      doc.text(`AVA · ${mode.label}`, pageW - marginX, y + 16, { align: "right" });
+      doc.setFont("courier", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(90, 100, 115);
+      doc.text(voicePrintHash ? `${voicePrintHash.slice(7, 27)}…` : "SHA-256 · pending", pageW - marginX, y + 32, { align: "right" });
+
+      // Footer bar
+      doc.setFillColor(16, 185, 129);
+      doc.rect(0, doc.internal.pageSize.getHeight() - 24, pageW, 24, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(`Zero-Form AVA · ${mode.docFooter}`, marginX, doc.internal.pageSize.getHeight() - 8);
+      doc.text(mode.docNumber, pageW - marginX, doc.internal.pageSize.getHeight() - 8, { align: "right" });
+
+      setProgress(100);
+      doc.save(`${mode.docNumber}.pdf`);
+      setDone(true);
+    } catch (err) {
+      console.error("PDF export failed", err);
+    } finally {
+      clearInterval(tick);
+      setExporting(false);
+    }
   };
 
   return (
