@@ -973,10 +973,10 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
       ctx.scale(ratio, ratio);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 1.6;
       ctx.strokeStyle = "rgb(16,185,129)";
-      ctx.shadowColor = "rgba(16,185,129,0.6)";
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = "rgba(16,185,129,0.35)";
+      ctx.shadowBlur = 2;
     };
     resize();
     window.addEventListener("resize", resize);
