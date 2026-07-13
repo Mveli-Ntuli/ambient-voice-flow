@@ -320,6 +320,7 @@ function Index() {
 
   return (
     <main className="min-h-screen overflow-x-hidden">
+      <ScrollBanner />
       <Nav />
       <ModeSelector active={modeKey} onChange={setModeKey} />
       <Hero mode={mode} auto={auto} setAuto={setAuto} transcript={extracted.transcript} />
@@ -346,6 +347,39 @@ function Index() {
       />
       <Footer />
     </main>
+  );
+}
+
+/* ============== SCROLL BANNER ============== */
+function ScrollBanner() {
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.sessionStorage.getItem("ava.banner.dismissed") === "1";
+  });
+  if (dismissed) return null;
+  return (
+    <div className="fixed top-3 left-3 right-3 md:left-1/2 md:right-auto md:-translate-x-1/2 md:max-w-3xl z-[60]">
+      <div className="glass rounded-2xl border border-primary/30 px-4 py-3 flex items-start gap-3 shadow-[0_8px_40px_-8px_rgba(16,185,129,0.35)] backdrop-blur-xl">
+        <span className="text-lg leading-none mt-0.5" aria-hidden>👉</span>
+        <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed flex-1">
+          Looking for your generated document? Scroll to the bottom of the page (or jump to the{" "}
+          <a href="#document" className="text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary transition">
+            Document
+          </a>{" "}
+          section) to preview, sign, and export the live PDF.
+        </p>
+        <button
+          onClick={() => {
+            try { window.sessionStorage.setItem("ava.banner.dismissed", "1"); } catch {}
+            setDismissed(true);
+          }}
+          className="text-muted-foreground hover:text-foreground transition p-1 -m-1"
+          aria-label="Dismiss notice"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
   );
 }
 
