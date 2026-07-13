@@ -251,6 +251,28 @@ type Extracted = {
   transcript: string;
 };
 
+async function svgToPng(svgText: string, w: number, h: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const blob = new Blob([svgText], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { URL.revokeObjectURL(url); return reject(new Error("no ctx")); }
+      ctx.fillStyle = "#0b1220";
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
 function useReveal(dep: unknown) {
   useEffect(() => {
     const els = document.querySelectorAll<HTMLElement>(".reveal, .reveal-up");
@@ -320,6 +342,7 @@ function Index() {
 
   return (
     <main className="min-h-screen overflow-x-hidden">
+      <ScrollBanner />
       <Nav />
       <ModeSelector active={modeKey} onChange={setModeKey} />
       <Hero mode={mode} auto={auto} setAuto={setAuto} transcript={extracted.transcript} />
@@ -346,6 +369,39 @@ function Index() {
       />
       <Footer />
     </main>
+  );
+}
+
+/* ============== SCROLL BANNER ============== */
+function ScrollBanner() {
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.sessionStorage.getItem("ava.banner.dismissed") === "1";
+  });
+  if (dismissed) return null;
+  return (
+    <div className="fixed top-36 md:top-36 left-3 right-3 md:left-1/2 md:right-auto md:-translate-x-1/2 md:max-w-3xl z-40">
+      <div className="glass rounded-2xl border border-primary/30 px-4 py-3 flex items-start gap-3 shadow-[0_8px_40px_-8px_rgba(16,185,129,0.35)] backdrop-blur-xl">
+        <span className="text-lg leading-none mt-0.5" aria-hidden>👉</span>
+        <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed flex-1">
+          Looking for your generated document? Scroll to the bottom of the page (or jump to the{" "}
+          <a href="#document" className="text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary transition">
+            Document
+          </a>{" "}
+          section) to preview, sign, and export the live PDF.
+        </p>
+        <button
+          onClick={() => {
+            try { window.sessionStorage.setItem("ava.banner.dismissed", "1"); } catch {}
+            setDismissed(true);
+          }}
+          className="text-muted-foreground hover:text-foreground transition p-1 -m-1"
+          aria-label="Dismiss notice"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -698,22 +754,97 @@ function Evidence({
 }
 
 function CameraFeed({ mode, onCapture }: { mode: ModeConfig; onCapture: (t: { id: string; label: string; src: string }) => void }) {
-  const targetRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [status, setStatus] = useState<"idle" | "starting" | "live" | "denied" | "unsupported" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState<string>("");
+  const [uploadedSrc, setUploadedSrc] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extracted, setExtracted] = useState(false);
 
-  const capture = () => {
-    const svg = `
-      <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 150'>
-        <rect width='200' height='150' fill='#0b1220'/>
-        <rect x='10' y='10' width='180' height='130' rx='8' fill='#0f3a32' stroke='#10b981' stroke-width='1.5'/>
-        <circle cx='40' cy='55' r='18' fill='#ffffff' opacity='0.25'/>
-        <rect x='70' y='42' width='110' height='6' rx='2' fill='#ffffff' opacity='0.6'/>
-        <rect x='70' y='56' width='90' height='5' rx='2' fill='#ffffff' opacity='0.45'/>
-        <rect x='70' y='68' width='100' height='5' rx='2' fill='#ffffff' opacity='0.35'/>
-        <rect x='20' y='100' width='60' height='25' rx='4' fill='#10b981' opacity='0.7'/>
-        <text x='28' y='117' font-family='monospace' font-size='10' fill='white'>VERIFIED</text>
-      </svg>`.replace(/\n/g, "").replace(/#/g, "%23");
-    onCapture({ id: crypto.randomUUID(), label: `ID Capture · ${new Date().toLocaleTimeString()}`, src: `data:image/svg+xml;utf8,${svg}` });
+  const stopStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
   };
+
+  useEffect(() => {
+    return () => stopStream();
+  }, []);
+
+  const startCamera = async () => {
+    setErrorMsg("");
+    setExtracted(false);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStatus("unsupported");
+      setErrorMsg("Camera API is not available in this browser.");
+      return;
+    }
+    try {
+      setStatus("starting");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+      setStatus("live");
+    } catch (err: unknown) {
+      const name = (err as { name?: string })?.name || "";
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setStatus("denied");
+        setErrorMsg("Camera permission was denied. Upload an image instead.");
+      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
+        setStatus("unsupported");
+        setErrorMsg("No camera device found. Upload an image instead.");
+      } else {
+        setStatus("error");
+        setErrorMsg((err as Error)?.message || "Camera could not be started.");
+      }
+    }
+  };
+
+  const captureFrame = () => {
+    const video = videoRef.current;
+    if (!video || status !== "live") return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const src = canvas.toDataURL("image/jpeg", 0.85);
+    setExtracting(true);
+    setTimeout(() => {
+      onCapture({ id: crypto.randomUUID(), label: `ID Capture · ${new Date().toLocaleTimeString()}`, src });
+      setExtracting(false);
+      setExtracted(true);
+    }, 900);
+  };
+
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = String(reader.result || "");
+      setUploadedSrc(src);
+      setExtracting(true);
+      setTimeout(() => {
+        onCapture({ id: crypto.randomUUID(), label: `ID Upload · ${file.name.slice(0, 24)}`, src });
+        setExtracting(false);
+        setExtracted(true);
+      }, 900);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const fallback = status === "denied" || status === "unsupported" || status === "error";
 
   return (
     <div className="reveal relative rounded-2xl glass p-5 overflow-hidden">
@@ -721,44 +852,107 @@ function CameraFeed({ mode, onCapture }: { mode: ModeConfig; onCapture: (t: { id
         <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
           <Camera className="h-4 w-4 text-secondary" /> Camera feed · OCR
         </div>
-        <span className="text-[10px] text-primary inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" /> LIVE
+        <span className={`text-[10px] inline-flex items-center gap-1.5 ${status === "live" ? "text-primary" : "text-muted-foreground"}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${status === "live" ? "bg-primary animate-pulse" : "bg-muted-foreground/60"}`} />
+          {status === "live" ? "LIVE" : status === "starting" ? "STARTING" : fallback ? "FALLBACK" : "IDLE"}
         </span>
       </div>
 
-      <div ref={targetRef} className="relative aspect-[4/3] rounded-xl overflow-hidden border border-white/10"
-        style={{
-          background:
-            "radial-gradient(120% 80% at 30% 20%, color-mix(in oklab, var(--color-secondary) 18%, transparent), transparent 55%), linear-gradient(135deg, oklch(0.22 0.03 255), oklch(0.16 0.02 250))",
-        }}
-      >
-        <div className="absolute inset-[12%] rounded-lg bg-white/[0.04] border border-white/15 backdrop-blur-sm p-3 sm:p-4 grid grid-cols-[60px_1fr] sm:grid-cols-[80px_1fr] gap-3 sm:gap-4 items-center">
-          <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-md bg-gradient-to-br from-primary/40 to-secondary/40 border border-white/20" />
-          <div className="space-y-1.5">
-            <div className="h-2 w-2/3 rounded bg-white/20" />
-            <div className="h-2 w-1/2 rounded bg-white/15" />
-            <div className="h-2 w-3/4 rounded bg-white/10" />
-            <div className="mt-2 h-1.5 w-1/3 rounded bg-primary/60" />
-          </div>
-        </div>
-
-        <div className="absolute left-[8%] right-[8%] top-[10%] bottom-[10%] rounded-lg pointer-events-none"
-          style={{
-            border: "2px solid var(--color-primary)",
-            boxShadow: "0 0 24px color-mix(in oklab, var(--color-primary) 70%, transparent), inset 0 0 18px color-mix(in oklab, var(--color-primary) 40%, transparent)",
-            animation: "orb-pulse 2.4s ease-in-out infinite",
-          }}
+      <div className="relative aspect-[4/3] rounded-xl overflow-hidden border border-white/10 bg-black/60">
+        {/* Live video */}
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className={`absolute inset-0 h-full w-full object-cover ${status === "live" ? "opacity-100" : "opacity-0"}`}
         />
-        <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line"
-             style={{ boxShadow: "0 0 24px var(--color-primary)" }} />
-        {[
-          "top-3 left-3 border-l-2 border-t-2",
-          "top-3 right-3 border-r-2 border-t-2",
-          "bottom-3 left-3 border-l-2 border-b-2",
-          "bottom-3 right-3 border-r-2 border-b-2",
-        ].map((c) => (
-          <span key={c} className={`absolute h-6 w-6 border-primary ${c}`} />
-        ))}
+
+        {/* Idle / starting state */}
+        {status !== "live" && !fallback && !uploadedSrc && (
+          <div className="absolute inset-0 grid place-items-center text-center px-6"
+            style={{
+              background:
+                "radial-gradient(120% 80% at 30% 20%, color-mix(in oklab, var(--color-secondary) 18%, transparent), transparent 55%), linear-gradient(135deg, oklch(0.22 0.03 255), oklch(0.16 0.02 250))",
+            }}
+          >
+            <div>
+              <Camera className="h-8 w-8 text-secondary mx-auto mb-3 opacity-70" />
+              <div className="text-xs text-muted-foreground max-w-[220px] mx-auto">
+                {status === "starting" ? "Requesting camera access…" : "Grant camera access to scan an ID or license"}
+              </div>
+              <button
+                onClick={startCamera}
+                disabled={status === "starting"}
+                className="mt-4 text-xs font-medium px-4 py-2 rounded-full glass hover:bg-primary/10 text-primary transition disabled:opacity-60"
+              >
+                {status === "starting" ? "Requesting…" : "Enable camera"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Fallback file upload */}
+        {fallback && (
+          <div className="absolute inset-0 grid place-items-center text-center p-6"
+            style={{ background: "linear-gradient(135deg, oklch(0.22 0.03 255), oklch(0.14 0.02 250))" }}
+          >
+            {uploadedSrc ? (
+              <img src={uploadedSrc} alt="Uploaded ID" className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <div>
+                <ImagePlus className="h-8 w-8 text-secondary mx-auto mb-3 opacity-70" />
+                <div className="text-xs text-muted-foreground max-w-[240px] mx-auto">
+                  {errorMsg || "Upload an ID image to run mock OCR extraction."}
+                </div>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-4 text-xs font-medium px-4 py-2 rounded-full glass hover:bg-primary/10 text-primary transition"
+                >
+                  Upload ID image
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onFile}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Scan overlay when live */}
+        {status === "live" && (
+          <>
+            <div className="absolute left-[8%] right-[8%] top-[10%] bottom-[10%] rounded-lg pointer-events-none"
+              style={{
+                border: "2px solid var(--color-primary)",
+                boxShadow: "0 0 24px color-mix(in oklab, var(--color-primary) 70%, transparent), inset 0 0 18px color-mix(in oklab, var(--color-primary) 40%, transparent)",
+                animation: "orb-pulse 2.4s ease-in-out infinite",
+              }}
+            />
+            <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line"
+                 style={{ boxShadow: "0 0 24px var(--color-primary)" }} />
+            {[
+              "top-3 left-3 border-l-2 border-t-2",
+              "top-3 right-3 border-r-2 border-t-2",
+              "bottom-3 left-3 border-l-2 border-b-2",
+              "bottom-3 right-3 border-r-2 border-b-2",
+            ].map((c) => (
+              <span key={c} className={`absolute h-6 w-6 border-primary ${c}`} />
+            ))}
+          </>
+        )}
+
+        {(extracting || extracted) && (
+          <div className="absolute bottom-3 left-3 right-3 rounded-lg glass px-3 py-2 text-[11px] flex items-center gap-2">
+            <span className={`h-1.5 w-1.5 rounded-full ${extracting ? "bg-secondary animate-pulse" : "bg-primary"}`} />
+            <span className={extracting ? "text-muted-foreground" : "text-primary"}>
+              {extracting ? "Running OCR extraction…" : "Extraction complete — fields populated"}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
@@ -767,12 +961,39 @@ function CameraFeed({ mode, onCapture }: { mode: ModeConfig; onCapture: (t: { id
         ))}
       </div>
 
-      <button
-        onClick={capture}
-        className="mt-4 w-full text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-primary/10 transition inline-flex items-center justify-center gap-2 text-primary"
-      >
-        <ImagePlus className="h-4 w-4" /> Capture frame
-      </button>
+      <div className="mt-4 flex gap-2">
+        {status === "live" ? (
+          <>
+            <button
+              onClick={captureFrame}
+              className="flex-1 text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-primary/10 transition inline-flex items-center justify-center gap-2 text-primary"
+            >
+              <ImagePlus className="h-4 w-4" /> Capture frame
+            </button>
+            <button
+              onClick={() => { stopStream(); setStatus("idle"); }}
+              className="text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-white/5 transition"
+            >
+              Stop
+            </button>
+          </>
+        ) : fallback ? (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex-1 text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-primary/10 transition inline-flex items-center justify-center gap-2 text-primary"
+          >
+            <ImagePlus className="h-4 w-4" /> {uploadedSrc ? "Upload another" : "Upload ID image"}
+          </button>
+        ) : (
+          <button
+            onClick={startCamera}
+            disabled={status === "starting"}
+            className="flex-1 text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-primary/10 transition inline-flex items-center justify-center gap-2 text-primary disabled:opacity-60"
+          >
+            <Camera className="h-4 w-4" /> {status === "starting" ? "Requesting…" : "Enable camera"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -959,6 +1180,7 @@ function Signature({
 function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
+  const lastPt = useRef<{ x: number; y: number } | null>(null);
   const [hasSig, setHasSig] = useState(false);
 
   useEffect(() => {
@@ -973,10 +1195,11 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
       ctx.scale(ratio, ratio);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 1.6;
       ctx.strokeStyle = "rgb(16,185,129)";
-      ctx.shadowColor = "rgba(16,185,129,0.6)";
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = "rgba(16,185,129,0.35)";
+      ctx.shadowBlur = 2;
+      (ctx as CanvasRenderingContext2D & { imageSmoothingEnabled?: boolean }).imageSmoothingEnabled = true;
     };
     resize();
     window.addEventListener("resize", resize);
@@ -992,22 +1215,36 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
   const down = (e: React.PointerEvent) => {
     drawing.current = true;
     (e.target as Element).setPointerCapture?.(e.pointerId);
-    const ctx = canvasRef.current!.getContext("2d")!;
     const { x, y } = pos(e);
+    lastPt.current = { x, y };
+    const ctx = canvasRef.current!.getContext("2d")!;
     ctx.beginPath();
     ctx.moveTo(x, y);
+    // Tiny dot so a single tap registers
+    ctx.lineTo(x + 0.01, y + 0.01);
+    ctx.stroke();
   };
   const move = (e: React.PointerEvent) => {
     if (!drawing.current) return;
     const ctx = canvasRef.current!.getContext("2d")!;
     const { x, y } = pos(e);
-    ctx.lineTo(x, y);
+    const last = lastPt.current ?? { x, y };
+    const mid = { x: (last.x + x) / 2, y: (last.y + y) / 2 };
+    // Simulated pressure: subtle width variation from pointer pressure (if any)
+    const pressure = (e as unknown as { pressure?: number }).pressure;
+    const dynamicWidth = 1.2 + (pressure && pressure > 0 ? pressure * 1.4 : 0.6);
+    ctx.lineWidth = dynamicWidth;
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.quadraticCurveTo(last.x, last.y, mid.x, mid.y);
     ctx.stroke();
+    lastPt.current = { x, y };
     if (!hasSig) setHasSig(true);
   };
   const up = () => {
     if (!drawing.current) return;
     drawing.current = false;
+    lastPt.current = null;
     const c = canvasRef.current!;
     onChange(c.toDataURL("image/png"));
   };
@@ -1164,21 +1401,181 @@ function JobCard({
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
     setDone(false);
     setExporting(true);
-    setProgress(0);
-    const id = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) {
-          clearInterval(id);
-          setExporting(false);
-          setDone(true);
-          return 100;
+    setProgress(5);
+
+    // Animate progress optimistically
+    const tick = setInterval(() => {
+      setProgress((p) => (p < 85 ? p + Math.random() * 6 + 2 : p));
+    }, 140);
+
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const marginX = 48;
+      let y = 56;
+
+      // Header
+      doc.setFillColor(9, 13, 22);
+      doc.rect(0, 0, pageW, 90, "F");
+      doc.setTextColor(16, 185, 129);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(mode.docTitle.toUpperCase(), marginX, 46);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.text(mode.docNumber, marginX, 72);
+      doc.setTextColor(200, 210, 220);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      const status = extracted.urgency ? mode.docFooter : "Pending capture";
+      doc.text(status.toUpperCase(), pageW - marginX, 46, { align: "right" });
+      doc.setFontSize(9);
+      doc.text("Generated " + new Date().toLocaleString(), pageW - marginX, 72, { align: "right" });
+
+      y = 130;
+      doc.setTextColor(30, 41, 59);
+
+      // Row helper
+      const row = (label: string, value: string) => {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 130, 145);
+        doc.text(label.toUpperCase(), marginX, y);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(20, 25, 40);
+        doc.text(String(value || "—"), marginX, y + 14);
+        y += 34;
+      };
+      const twoCol = (l1: string, v1: string, l2: string, v2: string) => {
+        const midX = pageW / 2;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 130, 145);
+        doc.text(l1.toUpperCase(), marginX, y);
+        doc.text(l2.toUpperCase(), midX, y);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(20, 25, 40);
+        doc.text(String(v1 || "—"), marginX, y + 14, { maxWidth: (pageW / 2) - marginX - 12 });
+        doc.text(String(v2 || "—"), midX, y + 14, { maxWidth: (pageW / 2) - marginX - 12 });
+        y += 36;
+      };
+
+      twoCol(mode.fields.name.label, extracted.name ?? "—", mode.docContactLabel, mode.docContactValue);
+      twoCol(mode.fields.location.label, extracted.location ?? "—", mode.fields.urgency.label, extracted.urgency ?? "—");
+      row(mode.fields.classification.label, extracted.classification ?? "—");
+
+      // Divider
+      doc.setDrawColor(220, 226, 235);
+      doc.line(marginX, y, pageW - marginX, y);
+      y += 24;
+
+      // Transcript
+      doc.setFontSize(8);
+      doc.setTextColor(120, 130, 145);
+      doc.setFont("helvetica", "normal");
+      doc.text("VOICE TRANSCRIPT", marginX, y);
+      y += 14;
+      doc.setFontSize(10);
+      doc.setTextColor(40, 50, 65);
+      const lines = doc.splitTextToSize(extracted.transcript || "Awaiting voice capture…", pageW - marginX * 2);
+      doc.text(lines, marginX, y);
+      y += lines.length * 13 + 18;
+
+      doc.line(marginX, y, pageW - marginX, y);
+      y += 20;
+
+      // Pins
+      doc.setFontSize(8);
+      doc.setTextColor(120, 130, 145);
+      doc.text(`${mode.schematic === "car" ? "VEHICLE DAMAGE MAP" : "DAMAGE MAP"} · ${pins.length} PIN${pins.length === 1 ? "" : "S"}`, marginX, y);
+      y += 14;
+      doc.setFontSize(10);
+      doc.setTextColor(40, 50, 65);
+      if (pins.length === 0) {
+        doc.setTextColor(150, 155, 165);
+        doc.text("No damage points pinned.", marginX, y);
+        y += 16;
+      } else {
+        for (const p of pins) {
+          doc.setFillColor(239, 68, 68);
+          doc.circle(marginX + 3, y - 3, 2.5, "F");
+          doc.setTextColor(40, 50, 65);
+          doc.text(`${p.label}  (${p.x.toFixed(0)}%, ${p.y.toFixed(0)}%)`, marginX + 14, y);
+          y += 15;
         }
-        return p + Math.random() * 8 + 2;
-      });
-    }, 120);
+      }
+      y += 18;
+
+      // Pin map thumbnail
+      const pinThumb = thumbnails.find((t) => t.label.startsWith("Pin map"));
+      if (pinThumb && pinThumb.src.startsWith("data:image/svg+xml")) {
+        // Convert svg data URL to PNG via canvas for jspdf
+        try {
+          const svgText = decodeURIComponent(pinThumb.src.split(",")[1]);
+          const png = await svgToPng(svgText, 400, 300);
+          doc.addImage(png, "PNG", marginX, y, 220, 165);
+          y += 180;
+        } catch { /* skip */ }
+      }
+
+      // Signature
+      if (y > 640) { doc.addPage(); y = 56; }
+      doc.setDrawColor(220, 226, 235);
+      doc.line(marginX, y, pageW - marginX, y);
+      y += 20;
+      doc.setFontSize(8);
+      doc.setTextColor(120, 130, 145);
+      doc.text("SIGNATURE", marginX, y);
+      y += 12;
+      if (signatureData) {
+        try {
+          doc.addImage(signatureData, "PNG", marginX, y, 180, 60);
+        } catch { /* ignore */ }
+      } else {
+        doc.setTextColor(150, 155, 165);
+        doc.setFontSize(10);
+        doc.text("(pending)", marginX, y + 20);
+      }
+      doc.setFontSize(9);
+      doc.setTextColor(60, 70, 90);
+      doc.text(`${extracted.name ?? "Pending"} · ${voicePrintHash ? "voiceprint verified" : "biometric pending"}`, marginX, y + 78);
+
+      doc.setFontSize(8);
+      doc.setTextColor(120, 130, 145);
+      doc.text("AUTHORISATION", pageW - marginX, y, { align: "right" });
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(20, 25, 40);
+      doc.text(`AVA · ${mode.label}`, pageW - marginX, y + 16, { align: "right" });
+      doc.setFont("courier", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(90, 100, 115);
+      doc.text(voicePrintHash ? `${voicePrintHash.slice(7, 27)}…` : "SHA-256 · pending", pageW - marginX, y + 32, { align: "right" });
+
+      // Footer bar
+      doc.setFillColor(16, 185, 129);
+      doc.rect(0, doc.internal.pageSize.getHeight() - 24, pageW, 24, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(`Zero-Form AVA · ${mode.docFooter}`, marginX, doc.internal.pageSize.getHeight() - 8);
+      doc.text(mode.docNumber, pageW - marginX, doc.internal.pageSize.getHeight() - 8, { align: "right" });
+
+      setProgress(100);
+      doc.save(`${mode.docNumber}.pdf`);
+      setDone(true);
+    } catch (err) {
+      console.error("PDF export failed", err);
+    } finally {
+      clearInterval(tick);
+      setExporting(false);
+    }
   };
 
   return (
