@@ -698,22 +698,97 @@ function Evidence({
 }
 
 function CameraFeed({ mode, onCapture }: { mode: ModeConfig; onCapture: (t: { id: string; label: string; src: string }) => void }) {
-  const targetRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [status, setStatus] = useState<"idle" | "starting" | "live" | "denied" | "unsupported" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState<string>("");
+  const [uploadedSrc, setUploadedSrc] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [extracted, setExtracted] = useState(false);
 
-  const capture = () => {
-    const svg = `
-      <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 150'>
-        <rect width='200' height='150' fill='#0b1220'/>
-        <rect x='10' y='10' width='180' height='130' rx='8' fill='#0f3a32' stroke='#10b981' stroke-width='1.5'/>
-        <circle cx='40' cy='55' r='18' fill='#ffffff' opacity='0.25'/>
-        <rect x='70' y='42' width='110' height='6' rx='2' fill='#ffffff' opacity='0.6'/>
-        <rect x='70' y='56' width='90' height='5' rx='2' fill='#ffffff' opacity='0.45'/>
-        <rect x='70' y='68' width='100' height='5' rx='2' fill='#ffffff' opacity='0.35'/>
-        <rect x='20' y='100' width='60' height='25' rx='4' fill='#10b981' opacity='0.7'/>
-        <text x='28' y='117' font-family='monospace' font-size='10' fill='white'>VERIFIED</text>
-      </svg>`.replace(/\n/g, "").replace(/#/g, "%23");
-    onCapture({ id: crypto.randomUUID(), label: `ID Capture · ${new Date().toLocaleTimeString()}`, src: `data:image/svg+xml;utf8,${svg}` });
+  const stopStream = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
   };
+
+  useEffect(() => {
+    return () => stopStream();
+  }, []);
+
+  const startCamera = async () => {
+    setErrorMsg("");
+    setExtracted(false);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStatus("unsupported");
+      setErrorMsg("Camera API is not available in this browser.");
+      return;
+    }
+    try {
+      setStatus("starting");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+      setStatus("live");
+    } catch (err: unknown) {
+      const name = (err as { name?: string })?.name || "";
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setStatus("denied");
+        setErrorMsg("Camera permission was denied. Upload an image instead.");
+      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
+        setStatus("unsupported");
+        setErrorMsg("No camera device found. Upload an image instead.");
+      } else {
+        setStatus("error");
+        setErrorMsg((err as Error)?.message || "Camera could not be started.");
+      }
+    }
+  };
+
+  const captureFrame = () => {
+    const video = videoRef.current;
+    if (!video || status !== "live") return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const src = canvas.toDataURL("image/jpeg", 0.85);
+    setExtracting(true);
+    setTimeout(() => {
+      onCapture({ id: crypto.randomUUID(), label: `ID Capture · ${new Date().toLocaleTimeString()}`, src });
+      setExtracting(false);
+      setExtracted(true);
+    }, 900);
+  };
+
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = String(reader.result || "");
+      setUploadedSrc(src);
+      setExtracting(true);
+      setTimeout(() => {
+        onCapture({ id: crypto.randomUUID(), label: `ID Upload · ${file.name.slice(0, 24)}`, src });
+        setExtracting(false);
+        setExtracted(true);
+      }, 900);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const fallback = status === "denied" || status === "unsupported" || status === "error";
 
   return (
     <div className="reveal relative rounded-2xl glass p-5 overflow-hidden">
@@ -721,44 +796,107 @@ function CameraFeed({ mode, onCapture }: { mode: ModeConfig; onCapture: (t: { id
         <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
           <Camera className="h-4 w-4 text-secondary" /> Camera feed · OCR
         </div>
-        <span className="text-[10px] text-primary inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" /> LIVE
+        <span className={`text-[10px] inline-flex items-center gap-1.5 ${status === "live" ? "text-primary" : "text-muted-foreground"}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${status === "live" ? "bg-primary animate-pulse" : "bg-muted-foreground/60"}`} />
+          {status === "live" ? "LIVE" : status === "starting" ? "STARTING" : fallback ? "FALLBACK" : "IDLE"}
         </span>
       </div>
 
-      <div ref={targetRef} className="relative aspect-[4/3] rounded-xl overflow-hidden border border-white/10"
-        style={{
-          background:
-            "radial-gradient(120% 80% at 30% 20%, color-mix(in oklab, var(--color-secondary) 18%, transparent), transparent 55%), linear-gradient(135deg, oklch(0.22 0.03 255), oklch(0.16 0.02 250))",
-        }}
-      >
-        <div className="absolute inset-[12%] rounded-lg bg-white/[0.04] border border-white/15 backdrop-blur-sm p-3 sm:p-4 grid grid-cols-[60px_1fr] sm:grid-cols-[80px_1fr] gap-3 sm:gap-4 items-center">
-          <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-md bg-gradient-to-br from-primary/40 to-secondary/40 border border-white/20" />
-          <div className="space-y-1.5">
-            <div className="h-2 w-2/3 rounded bg-white/20" />
-            <div className="h-2 w-1/2 rounded bg-white/15" />
-            <div className="h-2 w-3/4 rounded bg-white/10" />
-            <div className="mt-2 h-1.5 w-1/3 rounded bg-primary/60" />
-          </div>
-        </div>
-
-        <div className="absolute left-[8%] right-[8%] top-[10%] bottom-[10%] rounded-lg pointer-events-none"
-          style={{
-            border: "2px solid var(--color-primary)",
-            boxShadow: "0 0 24px color-mix(in oklab, var(--color-primary) 70%, transparent), inset 0 0 18px color-mix(in oklab, var(--color-primary) 40%, transparent)",
-            animation: "orb-pulse 2.4s ease-in-out infinite",
-          }}
+      <div className="relative aspect-[4/3] rounded-xl overflow-hidden border border-white/10 bg-black/60">
+        {/* Live video */}
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className={`absolute inset-0 h-full w-full object-cover ${status === "live" ? "opacity-100" : "opacity-0"}`}
         />
-        <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line"
-             style={{ boxShadow: "0 0 24px var(--color-primary)" }} />
-        {[
-          "top-3 left-3 border-l-2 border-t-2",
-          "top-3 right-3 border-r-2 border-t-2",
-          "bottom-3 left-3 border-l-2 border-b-2",
-          "bottom-3 right-3 border-r-2 border-b-2",
-        ].map((c) => (
-          <span key={c} className={`absolute h-6 w-6 border-primary ${c}`} />
-        ))}
+
+        {/* Idle / starting state */}
+        {status !== "live" && !fallback && !uploadedSrc && (
+          <div className="absolute inset-0 grid place-items-center text-center px-6"
+            style={{
+              background:
+                "radial-gradient(120% 80% at 30% 20%, color-mix(in oklab, var(--color-secondary) 18%, transparent), transparent 55%), linear-gradient(135deg, oklch(0.22 0.03 255), oklch(0.16 0.02 250))",
+            }}
+          >
+            <div>
+              <Camera className="h-8 w-8 text-secondary mx-auto mb-3 opacity-70" />
+              <div className="text-xs text-muted-foreground max-w-[220px] mx-auto">
+                {status === "starting" ? "Requesting camera access…" : "Grant camera access to scan an ID or license"}
+              </div>
+              <button
+                onClick={startCamera}
+                disabled={status === "starting"}
+                className="mt-4 text-xs font-medium px-4 py-2 rounded-full glass hover:bg-primary/10 text-primary transition disabled:opacity-60"
+              >
+                {status === "starting" ? "Requesting…" : "Enable camera"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Fallback file upload */}
+        {fallback && (
+          <div className="absolute inset-0 grid place-items-center text-center p-6"
+            style={{ background: "linear-gradient(135deg, oklch(0.22 0.03 255), oklch(0.14 0.02 250))" }}
+          >
+            {uploadedSrc ? (
+              <img src={uploadedSrc} alt="Uploaded ID" className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <div>
+                <ImagePlus className="h-8 w-8 text-secondary mx-auto mb-3 opacity-70" />
+                <div className="text-xs text-muted-foreground max-w-[240px] mx-auto">
+                  {errorMsg || "Upload an ID image to run mock OCR extraction."}
+                </div>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-4 text-xs font-medium px-4 py-2 rounded-full glass hover:bg-primary/10 text-primary transition"
+                >
+                  Upload ID image
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onFile}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Scan overlay when live */}
+        {status === "live" && (
+          <>
+            <div className="absolute left-[8%] right-[8%] top-[10%] bottom-[10%] rounded-lg pointer-events-none"
+              style={{
+                border: "2px solid var(--color-primary)",
+                boxShadow: "0 0 24px color-mix(in oklab, var(--color-primary) 70%, transparent), inset 0 0 18px color-mix(in oklab, var(--color-primary) 40%, transparent)",
+                animation: "orb-pulse 2.4s ease-in-out infinite",
+              }}
+            />
+            <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line"
+                 style={{ boxShadow: "0 0 24px var(--color-primary)" }} />
+            {[
+              "top-3 left-3 border-l-2 border-t-2",
+              "top-3 right-3 border-r-2 border-t-2",
+              "bottom-3 left-3 border-l-2 border-b-2",
+              "bottom-3 right-3 border-r-2 border-b-2",
+            ].map((c) => (
+              <span key={c} className={`absolute h-6 w-6 border-primary ${c}`} />
+            ))}
+          </>
+        )}
+
+        {(extracting || extracted) && (
+          <div className="absolute bottom-3 left-3 right-3 rounded-lg glass px-3 py-2 text-[11px] flex items-center gap-2">
+            <span className={`h-1.5 w-1.5 rounded-full ${extracting ? "bg-secondary animate-pulse" : "bg-primary"}`} />
+            <span className={extracting ? "text-muted-foreground" : "text-primary"}>
+              {extracting ? "Running OCR extraction…" : "Extraction complete — fields populated"}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
@@ -767,12 +905,39 @@ function CameraFeed({ mode, onCapture }: { mode: ModeConfig; onCapture: (t: { id
         ))}
       </div>
 
-      <button
-        onClick={capture}
-        className="mt-4 w-full text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-primary/10 transition inline-flex items-center justify-center gap-2 text-primary"
-      >
-        <ImagePlus className="h-4 w-4" /> Capture frame
-      </button>
+      <div className="mt-4 flex gap-2">
+        {status === "live" ? (
+          <>
+            <button
+              onClick={captureFrame}
+              className="flex-1 text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-primary/10 transition inline-flex items-center justify-center gap-2 text-primary"
+            >
+              <ImagePlus className="h-4 w-4" /> Capture frame
+            </button>
+            <button
+              onClick={() => { stopStream(); setStatus("idle"); }}
+              className="text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-white/5 transition"
+            >
+              Stop
+            </button>
+          </>
+        ) : fallback ? (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex-1 text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-primary/10 transition inline-flex items-center justify-center gap-2 text-primary"
+          >
+            <ImagePlus className="h-4 w-4" /> {uploadedSrc ? "Upload another" : "Upload ID image"}
+          </button>
+        ) : (
+          <button
+            onClick={startCamera}
+            disabled={status === "starting"}
+            className="flex-1 text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-primary/10 transition inline-flex items-center justify-center gap-2 text-primary disabled:opacity-60"
+          >
+            <Camera className="h-4 w-4" /> {status === "starting" ? "Requesting…" : "Enable camera"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
