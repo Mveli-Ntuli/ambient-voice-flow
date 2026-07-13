@@ -959,6 +959,7 @@ function Signature({
 function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
+  const lastPt = useRef<{ x: number; y: number } | null>(null);
   const [hasSig, setHasSig] = useState(false);
 
   useEffect(() => {
@@ -977,6 +978,7 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
       ctx.strokeStyle = "rgb(16,185,129)";
       ctx.shadowColor = "rgba(16,185,129,0.35)";
       ctx.shadowBlur = 2;
+      (ctx as CanvasRenderingContext2D & { imageSmoothingEnabled?: boolean }).imageSmoothingEnabled = true;
     };
     resize();
     window.addEventListener("resize", resize);
@@ -992,22 +994,36 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
   const down = (e: React.PointerEvent) => {
     drawing.current = true;
     (e.target as Element).setPointerCapture?.(e.pointerId);
-    const ctx = canvasRef.current!.getContext("2d")!;
     const { x, y } = pos(e);
+    lastPt.current = { x, y };
+    const ctx = canvasRef.current!.getContext("2d")!;
     ctx.beginPath();
     ctx.moveTo(x, y);
+    // Tiny dot so a single tap registers
+    ctx.lineTo(x + 0.01, y + 0.01);
+    ctx.stroke();
   };
   const move = (e: React.PointerEvent) => {
     if (!drawing.current) return;
     const ctx = canvasRef.current!.getContext("2d")!;
     const { x, y } = pos(e);
-    ctx.lineTo(x, y);
+    const last = lastPt.current ?? { x, y };
+    const mid = { x: (last.x + x) / 2, y: (last.y + y) / 2 };
+    // Simulated pressure: subtle width variation from pointer pressure (if any)
+    const pressure = (e as unknown as { pressure?: number }).pressure;
+    const dynamicWidth = 1.2 + (pressure && pressure > 0 ? pressure * 1.4 : 0.6);
+    ctx.lineWidth = dynamicWidth;
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.quadraticCurveTo(last.x, last.y, mid.x, mid.y);
     ctx.stroke();
+    lastPt.current = { x, y };
     if (!hasSig) setHasSig(true);
   };
   const up = () => {
     if (!drawing.current) return;
     drawing.current = false;
+    lastPt.current = null;
     const c = canvasRef.current!;
     onChange(c.toDataURL("image/png"));
   };
