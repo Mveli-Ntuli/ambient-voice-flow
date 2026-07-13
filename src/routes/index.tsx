@@ -380,7 +380,7 @@ function ScrollBanner() {
   });
   if (dismissed) return null;
   return (
-    <div className="fixed top-3 left-3 right-3 md:left-1/2 md:right-auto md:-translate-x-1/2 md:max-w-3xl z-[60]">
+    <div className="fixed top-36 md:top-36 left-3 right-3 md:left-1/2 md:right-auto md:-translate-x-1/2 md:max-w-3xl z-40">
       <div className="glass rounded-2xl border border-primary/30 px-4 py-3 flex items-start gap-3 shadow-[0_8px_40px_-8px_rgba(16,185,129,0.35)] backdrop-blur-xl">
         <span className="text-lg leading-none mt-0.5" aria-hidden>👉</span>
         <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed flex-1">
