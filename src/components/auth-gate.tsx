@@ -1,54 +1,107 @@
 import { useEffect, useState, type ReactNode, type FormEvent } from "react";
-import { Mic, Github, Sparkles, Loader2, Mail, Lock } from "lucide-react";
+import { Mic, Github, Sparkles, Loader2, Mail, Lock, AlertCircle } from "lucide-react";
 
-const STORAGE_KEY = "ava.demo.session";
+const USERS_KEY = "ava.mock.users";
+const SESSION_KEY = "ava.mock.session";
 
-function readSession(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    return false;
+type UserRecord = { email: string; pwd: string; createdAt: number };
+type Session = { email: string; loggedInAt: number };
+
+async function hashPassword(pwd: string): Promise<string> {
+  if (typeof crypto !== "undefined" && crypto.subtle) {
+    const buf = new TextEncoder().encode(pwd + "::ava-salt");
+    const digest = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
   }
+  return btoa(pwd + "::ava-salt");
+}
+
+function readUsers(): Record<string, UserRecord> {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(USERS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+function writeUsers(u: Record<string, UserRecord>) {
+  try {
+    window.localStorage.setItem(USERS_KEY, JSON.stringify(u));
+  } catch {}
+}
+function readSession(): Session | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function writeSession(s: Session | null) {
+  try {
+    if (s) window.localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    else window.localStorage.removeItem(SESSION_KEY);
+  } catch {}
 }
 
 export function useDemoAuth() {
   const [ready, setReady] = useState(false);
-  const [authed, setAuthed] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+
   useEffect(() => {
-    setAuthed(readSession());
+    setSession(readSession());
     setReady(true);
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setAuthed(e.newValue === "1");
+      if (e.key === SESSION_KEY) setSession(readSession());
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+
   return {
     ready,
-    authed,
-    signIn: () => {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, "1");
-      } catch {}
-      setAuthed(true);
+    authed: !!session,
+    session,
+    signUp: async (email: string, password: string) => {
+      const key = email.trim().toLowerCase();
+      const users = readUsers();
+      if (users[key]) throw new Error("An account with this email already exists. Please sign in.");
+      const pwd = await hashPassword(password);
+      users[key] = { email: key, pwd, createdAt: Date.now() };
+      writeUsers(users);
+      const s: Session = { email: key, loggedInAt: Date.now() };
+      writeSession(s);
+      setSession(s);
+    },
+    signIn: async (email: string, password: string) => {
+      const key = email.trim().toLowerCase();
+      const users = readUsers();
+      const rec = users[key];
+      if (!rec) throw new Error("No account found for this email. Create one first.");
+      const pwd = await hashPassword(password);
+      if (rec.pwd !== pwd) throw new Error("Incorrect password for this email.");
+      const s: Session = { email: key, loggedInAt: Date.now() };
+      writeSession(s);
+      setSession(s);
     },
     signOut: () => {
-      try {
-        window.localStorage.removeItem(STORAGE_KEY);
-      } catch {}
-      setAuthed(false);
+      writeSession(null);
+      setSession(null);
     },
   };
 }
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { ready, authed, signIn } = useDemoAuth();
+  const { ready, authed, signIn, signUp } = useDemoAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [entered, setEntered] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authed) {
@@ -80,9 +133,20 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    setError(null);
+    if (password.length < 4) {
+      setError("Password must be at least 4 characters.");
+      return;
+    }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 650));
-    signIn();
+    try {
+      if (mode === "signin") await signIn(email, password);
+      else await signUp(email, password);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -122,7 +186,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 <button
                   key={m}
                   type="button"
-                  onClick={() => setMode(m)}
+                  onClick={() => { setMode(m); setError(null); }}
                   className={`flex-1 rounded-full px-4 py-2 font-medium transition-all ${
                     mode === m
                       ? "bg-primary text-primary-foreground shadow-[0_0_24px_-6px_var(--primary)]"
@@ -178,6 +242,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 </div>
               </label>
 
+              {error && (
+                <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading}
@@ -193,37 +264,35 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
             <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
               <div className="h-px flex-1 bg-white/10" />
-              <span>or continue with</span>
+              <span>social sign-in (coming soon)</span>
               <div className="h-px flex-1 bg-white/10" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 opacity-60">
               <button
                 type="button"
-                onClick={signIn}
-                className="group flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] py-2.5 text-sm font-medium transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
+                disabled
+                title="Social sign-in requires Lovable Cloud auth — not enabled in demo mode."
+                className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] py-2.5 text-sm font-medium cursor-not-allowed"
               >
                 <GoogleIcon className="h-4 w-4" />
                 Google
               </button>
               <button
                 type="button"
-                onClick={signIn}
-                className="group flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] py-2.5 text-sm font-medium transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06]"
+                disabled
+                title="Social sign-in requires Lovable Cloud auth — not enabled in demo mode."
+                className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] py-2.5 text-sm font-medium cursor-not-allowed"
               >
                 <Github className="h-4 w-4" />
                 GitHub
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={signIn}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 py-2.5 text-sm font-semibold text-primary transition-all hover:border-primary/70 hover:bg-primary/15 hover:shadow-[0_0_28px_-8px_var(--primary)]"
-            >
-              <Sparkles className="h-4 w-4" />
-              Demo Login (skip auth)
-            </button>
+            <p className="mt-6 text-center text-[11px] text-muted-foreground/70">
+              <Sparkles className="mr-1 inline h-3 w-3 text-primary" />
+              Credentials are stored locally on this device (mock database).
+            </p>
           </div>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
