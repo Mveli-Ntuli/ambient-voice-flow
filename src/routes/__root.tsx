@@ -11,7 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthGate } from "../components/auth-gate";
+import { AuthGate, AuthProvider } from "../components/auth-gate";
 import { AppShell } from "../components/app-shell";
 
 function NotFoundComponent() {
