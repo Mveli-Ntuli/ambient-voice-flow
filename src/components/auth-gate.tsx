@@ -1,11 +1,51 @@
-import { useEffect, useState, type ReactNode, type FormEvent } from "react";
-import { Mic, Github, Sparkles, Loader2, Mail, Lock, AlertCircle } from "lucide-react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+  type FormEvent,
+} from "react";
+import {
+  Mic,
+  Github,
+  Sparkles,
+  Loader2,
+  Mail,
+  Lock,
+  AlertCircle,
+  User as UserIcon,
+  KeyRound,
+  Info,
+} from "lucide-react";
 
 const USERS_KEY = "ava.mock.users";
 const SESSION_KEY = "ava.mock.session";
 
-type UserRecord = { email: string; pwd: string; createdAt: number };
-type Session = { email: string; loggedInAt: number };
+/* Mock reception database — front-desk placement codes */
+const RECEPTION_DB: Record<string, { room: string; residence: string }> = {
+  "NMU-RES-9942": { room: "204B", residence: "North Campus Hall" },
+  "NMU-RES-1053": { room: "112A", residence: "Marina Court" },
+  "NMU-RES-2077": { room: "308C", residence: "Harbor Wing" },
+};
+
+type UserRecord = {
+  email: string;
+  pwd: string;
+  fullName: string;
+  refCode: string;
+  room: string;
+  residence: string;
+  createdAt: number;
+};
+type Session = {
+  email: string;
+  fullName: string;
+  refCode: string;
+  room: string;
+  residence: string;
+  loggedInAt: number;
+};
 
 async function hashPassword(pwd: string): Promise<string> {
   if (typeof crypto !== "undefined" && crypto.subtle) {
@@ -47,7 +87,29 @@ function writeSession(s: Session | null) {
   } catch {}
 }
 
-export function useDemoAuth() {
+/* Per-user scoped storage helper (job cards, transcripts, signatures) */
+export function userScopedKey(base: string, email: string | undefined | null) {
+  const who = (email || "anonymous").trim().toLowerCase();
+  return `ava.user::${who}::${base}`;
+}
+
+type AuthContextValue = {
+  ready: boolean;
+  authed: boolean;
+  session: Session | null;
+  signUp: (input: {
+    fullName: string;
+    email: string;
+    password: string;
+    refCode: string;
+  }) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => void;
+};
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
 
@@ -61,29 +123,60 @@ export function useDemoAuth() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  return {
+  const value: AuthContextValue = {
     ready,
     authed: !!session,
     session,
-    signUp: async (email: string, password: string) => {
+    signUp: async ({ fullName, email, password, refCode }) => {
       const key = email.trim().toLowerCase();
+      const code = refCode.trim().toUpperCase();
+      const record = RECEPTION_DB[code];
+      if (!record) {
+        throw new Error(
+          "Access Denied: No matching placement record found at the reception desk. Please verify your reference code.",
+        );
+      }
+      if (!fullName.trim()) throw new Error("Please enter your full name.");
       const users = readUsers();
       if (users[key]) throw new Error("An account with this email already exists. Please sign in.");
       const pwd = await hashPassword(password);
-      users[key] = { email: key, pwd, createdAt: Date.now() };
+      const rec: UserRecord = {
+        email: key,
+        pwd,
+        fullName: fullName.trim(),
+        refCode: code,
+        room: record.room,
+        residence: record.residence,
+        createdAt: Date.now(),
+      };
+      users[key] = rec;
       writeUsers(users);
-      const s: Session = { email: key, loggedInAt: Date.now() };
+      const s: Session = {
+        email: key,
+        fullName: rec.fullName,
+        refCode: code,
+        room: rec.room,
+        residence: rec.residence,
+        loggedInAt: Date.now(),
+      };
       writeSession(s);
       setSession(s);
     },
-    signIn: async (email: string, password: string) => {
+    signIn: async (email, password) => {
       const key = email.trim().toLowerCase();
       const users = readUsers();
       const rec = users[key];
       if (!rec) throw new Error("No account found for this email. Create one first.");
       const pwd = await hashPassword(password);
       if (rec.pwd !== pwd) throw new Error("Incorrect password for this email.");
-      const s: Session = { email: key, loggedInAt: Date.now() };
+      const s: Session = {
+        email: key,
+        fullName: rec.fullName,
+        refCode: rec.refCode,
+        room: rec.room,
+        residence: rec.residence,
+        loggedInAt: Date.now(),
+      };
       writeSession(s);
       setSession(s);
     },
@@ -92,11 +185,26 @@ export function useDemoAuth() {
       setSession(null);
     },
   };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuth must be used within <AuthProvider>");
+  }
+  return ctx;
+}
+
+/* Back-compat alias so existing imports keep working */
+export const useDemoAuth = useAuth;
+
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { ready, authed, signIn, signUp } = useDemoAuth();
+  const { ready, authed, signIn, signUp } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [fullName, setFullName] = useState("");
+  const [refCode, setRefCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -140,10 +248,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
     }
     setLoading(true);
     try {
-      if (mode === "signin") await signIn(email, password);
-      else await signUp(email, password);
+      if (mode === "signin") {
+        await signIn(email, password);
+      } else {
+        await signUp({ fullName, email, password, refCode });
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+      if (mode === "signup") {
+        setRefCode("");
+      }
     } finally {
       setLoading(false);
     }
@@ -180,13 +294,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+          <div className="rounded-2xl border border-white/10 bg-[rgba(15,23,42,0.65)] p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-8">
             <div className="mb-6 flex rounded-full border border-white/10 bg-black/30 p-1 text-sm">
               {(["signin", "signup"] as const).map((m) => (
                 <button
                   key={m}
                   type="button"
-                  onClick={() => { setMode(m); setError(null); }}
+                  onClick={() => {
+                    setMode(m);
+                    setError(null);
+                  }}
                   className={`flex-1 rounded-full px-4 py-2 font-medium transition-all ${
                     mode === m
                       ? "bg-primary text-primary-foreground shadow-[0_0_24px_-6px_var(--primary)]"
@@ -199,15 +316,34 @@ export function AuthGate({ children }: { children: ReactNode }) {
             </div>
 
             <h1 className="font-display text-2xl font-bold tracking-tight">
-              {mode === "signin" ? "Welcome back" : "Join Zero-Form AVA"}
+              {mode === "signin" ? "Welcome back" : "Reception check-in"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {mode === "signin"
                 ? "Enter your credentials to open the intake console."
-                : "Spin up a workspace and start capturing intents by voice."}
+                : "Register with your placement code to activate your workspace."}
             </p>
 
             <form onSubmit={submit} className="mt-6 space-y-4">
+              {mode === "signup" && (
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Full name
+                  </span>
+                  <div className="group relative">
+                    <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Mveli Ntuli"
+                      className="w-full rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
+                    />
+                  </div>
+                </label>
+              )}
+
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Email
@@ -224,6 +360,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   />
                 </div>
               </label>
+
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Password
@@ -242,6 +379,32 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 </div>
               </label>
 
+              {mode === "signup" && (
+                <label className="block">
+                  <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Residence reference / Placement code
+                    <span
+                      title="Don't have a code? Use test code: NMU-RES-9942"
+                      className="inline-flex cursor-help items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary/90 normal-case"
+                    >
+                      <Info className="h-2.5 w-2.5" />
+                      test: NMU-RES-9942
+                    </span>
+                  </span>
+                  <div className="group relative">
+                    <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                    <input
+                      type="text"
+                      required
+                      value={refCode}
+                      onChange={(e) => setRefCode(e.target.value.toUpperCase())}
+                      placeholder="NMU-RES-XXXX"
+                      className="w-full rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm font-mono tracking-wider outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
+                    />
+                  </div>
+                </label>
+              )}
+
               {error && (
                 <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -256,7 +419,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
               >
                 <span className="relative z-10 inline-flex items-center justify-center gap-2">
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {mode === "signin" ? "Sign in" : "Create account"}
+                  {mode === "signin" ? "Sign in" : "Check in"}
                 </span>
                 <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               </button>
