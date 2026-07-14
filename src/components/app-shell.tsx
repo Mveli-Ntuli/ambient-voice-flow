@@ -27,7 +27,7 @@ const NAV: NavItem[] = [
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobile, setMobile] = useState(false);
-  const { signOut } = useDemoAuth();
+  const { signOut, session } = useDemoAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
@@ -130,6 +130,29 @@ export function AppShell({ children }: { children: ReactNode }) {
           collapsed ? "md:pl-[76px]" : "md:pl-64"
         } pb-24 md:pb-0`}
       >
+        {session && (
+          <div className="sticky top-3 z-30 mx-3 mt-3 flex justify-end md:mx-6 md:mt-4">
+            <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-[rgba(15,23,42,0.65)] px-3 py-1.5 text-xs shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+              <span className="relative flex h-6 w-6 items-center justify-center rounded-full border border-primary/40 bg-primary/15 text-[10px] font-bold text-primary">
+                {session.fullName
+                  .split(" ")
+                  .map((p) => p[0])
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase() || "?"}
+                <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_var(--primary)]" />
+              </span>
+              <span className="font-semibold text-foreground">{session.fullName}</span>
+              <span className="hidden text-muted-foreground sm:inline">·</span>
+              <span className="hidden text-muted-foreground sm:inline">Room {session.room}</span>
+              <span className="hidden text-muted-foreground md:inline">·</span>
+              <span className="hidden font-mono text-[10px] text-primary/80 md:inline">
+                {session.refCode}
+              </span>
+            </div>
+          </div>
+        )}
         {children}
       </main>
 
