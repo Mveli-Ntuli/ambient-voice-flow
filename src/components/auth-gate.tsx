@@ -33,6 +33,23 @@ const RECEPTION_SEED: Record<string, { room: string; residence: string }> = {
   "NMU-RES-2077": { room: "308C", residence: "Harbor Wing" },
 };
 
+export function loadReceptionDB(): Record<string, { room: string; residence: string; name?: string; nationalId?: string; paid?: boolean; createdAt?: number }> {
+  if (typeof window === "undefined") return { ...RECEPTION_SEED };
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(RECEPTION_KEY) || "{}");
+    return { ...RECEPTION_SEED, ...stored };
+  } catch {
+    return { ...RECEPTION_SEED };
+  }
+}
+
+export function writeReceptionDB(db: Record<string, { room: string; residence: string; name?: string; nationalId?: string; paid?: boolean; createdAt?: number }>) {
+  try {
+    window.localStorage.setItem(RECEPTION_KEY, JSON.stringify(db));
+  } catch {}
+}
+
+
 type UserRecord = {
   email: string;
   pwd: string;
