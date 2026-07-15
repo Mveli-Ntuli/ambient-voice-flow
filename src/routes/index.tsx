@@ -346,31 +346,42 @@ function Index() {
       <Nav />
       <ModeSelector active={modeKey} onChange={setModeKey} />
       <Hero mode={mode} auto={auto} setAuto={setAuto} transcript={extracted.transcript} />
-      <Checklist mode={mode} auto={auto} setAuto={setAuto} extracted={extracted} />
-      <Evidence
-        mode={mode}
-        pins={pins}
-        setPins={setPins}
-        thumbnails={thumbnails}
-        setThumbnails={setThumbnails}
-      />
-      <Signature
-        mode={mode}
-        onSignature={setSignatureData}
-        onVoicePrint={setVoicePrintHash}
-      />
-      <JobCard
-        mode={mode}
-        extracted={extracted}
-        pins={pins}
-        signatureData={signatureData}
-        voicePrintHash={voicePrintHash}
-        thumbnails={thumbnails}
-      />
+
+      {/* Split workspace: left = capture controls, right = live document */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-24">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="space-y-6 min-w-0 workspace-col">
+            <Checklist mode={mode} auto={auto} setAuto={setAuto} extracted={extracted} />
+            <Evidence
+              mode={mode}
+              pins={pins}
+              setPins={setPins}
+              thumbnails={thumbnails}
+              setThumbnails={setThumbnails}
+            />
+            <Signature
+              mode={mode}
+              onSignature={setSignatureData}
+              onVoicePrint={setVoicePrintHash}
+            />
+          </div>
+          <div className="lg:sticky lg:top-32 min-w-0 workspace-col">
+            <JobCard
+              mode={mode}
+              extracted={extracted}
+              pins={pins}
+              signatureData={signatureData}
+              voicePrintHash={voicePrintHash}
+              thumbnails={thumbnails}
+            />
+          </div>
+        </div>
+      </div>
       <Footer />
     </main>
   );
 }
+
 
 /* ============== SCROLL BANNER ============== */
 function ScrollBanner() {
