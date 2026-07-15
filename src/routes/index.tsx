@@ -1680,9 +1680,72 @@ function JobCard({
           </aside>
         </div>
       </div>
+
+      {/* Email Dispatcher Overlay */}
+      {dispatch && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 backdrop-blur-md bg-black/60 animate-in fade-in duration-300">
+          <div className="w-full max-w-md rounded-2xl border border-primary/30 bg-[rgba(15,23,42,0.85)] p-6 shadow-[0_30px_100px_-20px_var(--primary)] backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-xl bg-primary/40 blur-md animate-pulse" />
+                <div className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-primary/40 bg-primary/10">
+                  {dispatch === "sending" ? (
+                    <svg className="h-5 w-5 text-primary animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-90" d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
+                    </svg>
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                  )}
+                </div>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] uppercase tracking-[0.3em] text-primary/80">Email dispatcher</div>
+                <div className="font-display font-bold text-sm truncate">
+                  {dispatch === "sending" ? "Encrypting & transmitting…" : "Ready to send"}
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
+              {dispatch === "sending"
+                ? "Securely transmitting encrypted PDF report to central office ("
+                : "Prefilled draft opened in your mail client for "}
+              <span className="text-primary font-mono">{OFFICE_EMAIL}</span>
+              {dispatch === "sending" ? ")…" : ". Attach the downloaded PDF and hit send."}
+            </p>
+
+            {/* Progress bars */}
+            <div className="mt-4 space-y-2">
+              {["Compiling document state", "AES-256 encrypting payload", "Routing to central office"].map((step, i) => (
+                <div key={step} className="flex items-center gap-2 text-[11px]">
+                  <span className={`h-1.5 w-1.5 rounded-full ${dispatch === "sent" || i < 2 ? "bg-primary" : "bg-primary/50 animate-pulse"}`} />
+                  <span className={dispatch === "sent" ? "text-foreground" : "text-muted-foreground"}>{step}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 flex items-center justify-between gap-2">
+              <a
+                href={`mailto:${OFFICE_EMAIL}`}
+                className="text-[11px] text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary transition"
+              >
+                Open mail again
+              </a>
+              <button
+                onClick={() => setDispatch(null)}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition px-3 py-1.5 rounded-md border border-white/10 bg-white/[0.03]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
+
 
 function Document({
   mode, extracted, pins, signatureData, voicePrintHash, thumbnails,
