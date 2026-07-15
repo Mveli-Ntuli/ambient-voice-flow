@@ -1403,6 +1403,9 @@ function JobCard({
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
+  const [dispatch, setDispatch] = useState<null | "sending" | "sent">(null);
+  const OFFICE_EMAIL = "ntuli.mveli@gmail.com";
+
 
   const exportPdf = async () => {
     setDone(false);
