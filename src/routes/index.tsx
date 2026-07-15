@@ -1221,10 +1221,11 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
     const { x, y } = pos(e);
     const last = lastPt.current ?? { x, y };
     const mid = { x: (last.x + x) / 2, y: (last.y + y) / 2 };
-    // Simulated pressure: subtle width variation from pointer pressure (if any)
+    // Smooth ink: clamp pen width strictly 1.5–2.0 px
     const pressure = (e as unknown as { pressure?: number }).pressure;
-    const dynamicWidth = 1.2 + (pressure && pressure > 0 ? pressure * 1.4 : 0.6);
+    const dynamicWidth = Math.max(1.5, Math.min(2.0, 1.5 + (pressure && pressure > 0 ? pressure * 0.5 : 0.35)));
     ctx.lineWidth = dynamicWidth;
+
     ctx.beginPath();
     ctx.moveTo(last.x, last.y);
     ctx.quadraticCurveTo(last.x, last.y, mid.x, mid.y);
