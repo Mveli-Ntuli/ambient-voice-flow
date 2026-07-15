@@ -1576,6 +1576,36 @@ function JobCard({
       setProgress(100);
       doc.save(`${mode.docNumber}.pdf`);
       setDone(true);
+      // Trigger email dispatcher overlay + prefill mailto
+      setDispatch("sending");
+      setTimeout(() => {
+        setDispatch("sent");
+        const subject = encodeURIComponent(`[${mode.docTitle}] ${mode.docNumber} — ${extracted.name ?? "AVA capture"}`);
+        const bodyLines = [
+          `Central Office,`,
+          ``,
+          `Please find attached the finalized ${mode.docTitle} generated via Zero-Form AVA.`,
+          ``,
+          `Reference:        ${mode.docNumber}`,
+          `Resident:         ${extracted.name ?? "—"}`,
+          `Location:         ${extracted.location ?? "—"}`,
+          `Classification:   ${extracted.classification ?? "—"}`,
+          `Urgency:          ${extracted.urgency ?? "—"}`,
+          `Signature Hash:   ${voicePrintHash ? voicePrintHash.slice(0, 32) + "…" : "SHA-256 · pending"}`,
+          `Signature Captured: ${signatureData ? "Yes" : "No"}`,
+          `Damage Pins:      ${pins.length}`,
+          ``,
+          `Transcript:`,
+          extracted.transcript || "(awaiting voice)",
+          ``,
+          `— Attached: ${mode.docNumber}.pdf (please attach the file that was just downloaded to your device)`,
+        ];
+        const body = encodeURIComponent(bodyLines.join("\n"));
+        const mailto = `mailto:${OFFICE_EMAIL}?subject=${subject}&body=${body}`;
+        try { window.location.href = mailto; } catch {}
+        setTimeout(() => setDispatch(null), 2600);
+      }, 1600);
+
     } catch (err) {
       console.error("PDF export failed", err);
     } finally {
