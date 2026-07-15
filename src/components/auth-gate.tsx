@@ -223,6 +223,8 @@ export const useDemoAuth = useAuth;
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { ready, authed, signIn, signUp } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isPublicRoute = pathname === "/reception";
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [fullName, setFullName] = useState("");
   const [refCode, setRefCode] = useState("");
@@ -231,6 +233,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [entered, setEntered] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [codeMissing, setCodeMissing] = useState(false);
+
 
   useEffect(() => {
     if (authed) {
