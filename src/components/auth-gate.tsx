@@ -252,11 +252,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (authed) {
+  if (authed || isPublicRoute) {
     return (
       <div
         className={`transition-all duration-700 ease-out ${
-          entered ? "opacity-100 scale-100" : "opacity-0 scale-[0.98]"
+          entered || isPublicRoute ? "opacity-100 scale-100" : "opacity-0 scale-[0.98]"
         }`}
       >
         {children}
@@ -267,6 +267,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setCodeMissing(false);
     if (password.length < 4) {
       setError("Password must be at least 4 characters.");
       return;
@@ -279,14 +280,18 @@ export function AuthGate({ children }: { children: ReactNode }) {
         await signUp({ fullName, email, password, refCode });
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-      if (mode === "signup") {
-        setRefCode("");
+      const msg = err instanceof Error ? err.message : "Something went wrong.";
+      if (msg === "RECEPTION_CODE_NOT_FOUND") {
+        setCodeMissing(true);
+      } else {
+        setError(msg);
       }
+      if (mode === "signup") setRefCode("");
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground font-sans">
