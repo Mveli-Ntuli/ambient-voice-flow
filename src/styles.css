@@ -193,3 +193,17 @@
   0%, 100% { transform: translate(-50%,-50%) scale(1); }
   50% { transform: translate(-50%,-50%) scale(1.2); }
 }
+
+/* Two-column workspace: compact inner sections */
+.workspace-col > section {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+.workspace-col > section > div {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  max-width: 100% !important;
+}
+.workspace-col > section + section {
+  margin-top: 0;
+}
