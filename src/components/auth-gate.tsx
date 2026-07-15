@@ -151,12 +151,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp: async ({ fullName, email, password, refCode }) => {
       const key = email.trim().toLowerCase();
       const code = refCode.trim().toUpperCase();
-      const record = RECEPTION_DB[code];
+      const db = loadReceptionDB();
+      const record = db[code];
       if (!record) {
-        throw new Error(
-          "Access Denied: No matching placement record found at the reception desk. Please verify your reference code.",
-        );
+        throw new Error("RECEPTION_CODE_NOT_FOUND");
       }
+
       if (!fullName.trim()) throw new Error("Please enter your full name.");
       const users = readUsers();
       if (users[key]) throw new Error("An account with this email already exists. Please sign in.");
