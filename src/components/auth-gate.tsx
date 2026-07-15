@@ -442,6 +442,30 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 </div>
               )}
 
+              {codeMissing && (
+                <div className="rounded-xl border border-amber-400/40 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-4 text-xs text-amber-100 shadow-[0_0_32px_-12px_rgba(251,191,36,0.4)]">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-amber-200">Code not found.</div>
+                      <p className="mt-1 leading-relaxed text-amber-100/85">
+                        Please register at the{" "}
+                        <Link
+                          to="/reception"
+                          className="inline-flex items-center gap-1 font-semibold text-primary underline decoration-primary/50 underline-offset-2 transition hover:decoration-primary"
+                        >
+                          Reception Desk Portal
+                          <ArrowRight className="h-3 w-3" />
+                        </Link>{" "}
+                        to authorize your residence placement.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
+
               <button
                 type="submit"
                 disabled={loading}
