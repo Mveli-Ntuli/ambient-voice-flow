@@ -6,6 +6,7 @@ import {
   type ReactNode,
   type FormEvent,
 } from "react";
+import { useRouterState, Link } from "@tanstack/react-router";
 import {
   Mic,
   Github,
@@ -17,17 +18,37 @@ import {
   User as UserIcon,
   KeyRound,
   Info,
+  ArrowRight,
 } from "lucide-react";
 
 const USERS_KEY = "ava.mock.users";
 const SESSION_KEY = "ava.mock.session";
+const RECEPTION_KEY = "ava.mock.reception";
 
-/* Mock reception database — front-desk placement codes */
-const RECEPTION_DB: Record<string, { room: string; residence: string }> = {
+/* Mock reception database — front-desk placement codes (seed defaults) */
+const RECEPTION_SEED: Record<string, { room: string; residence: string }> = {
+
   "NMU-RES-9942": { room: "204B", residence: "North Campus Hall" },
   "NMU-RES-1053": { room: "112A", residence: "Marina Court" },
   "NMU-RES-2077": { room: "308C", residence: "Harbor Wing" },
 };
+
+export function loadReceptionDB(): Record<string, { room: string; residence: string; name?: string; nationalId?: string; paid?: boolean; createdAt?: number }> {
+  if (typeof window === "undefined") return { ...RECEPTION_SEED };
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(RECEPTION_KEY) || "{}");
+    return { ...RECEPTION_SEED, ...stored };
+  } catch {
+    return { ...RECEPTION_SEED };
+  }
+}
+
+export function writeReceptionDB(db: Record<string, { room: string; residence: string; name?: string; nationalId?: string; paid?: boolean; createdAt?: number }>) {
+  try {
+    window.localStorage.setItem(RECEPTION_KEY, JSON.stringify(db));
+  } catch {}
+}
+
 
 type UserRecord = {
   email: string;
@@ -130,12 +151,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp: async ({ fullName, email, password, refCode }) => {
       const key = email.trim().toLowerCase();
       const code = refCode.trim().toUpperCase();
-      const record = RECEPTION_DB[code];
+      const db = loadReceptionDB();
+      const record = db[code];
       if (!record) {
-        throw new Error(
-          "Access Denied: No matching placement record found at the reception desk. Please verify your reference code.",
-        );
+        throw new Error("RECEPTION_CODE_NOT_FOUND");
       }
+
       if (!fullName.trim()) throw new Error("Please enter your full name.");
       const users = readUsers();
       if (users[key]) throw new Error("An account with this email already exists. Please sign in.");
@@ -202,6 +223,8 @@ export const useDemoAuth = useAuth;
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { ready, authed, signIn, signUp } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isPublicRoute = pathname === "/reception";
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [fullName, setFullName] = useState("");
   const [refCode, setRefCode] = useState("");
@@ -210,6 +233,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [entered, setEntered] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [codeMissing, setCodeMissing] = useState(false);
+
 
   useEffect(() => {
     if (authed) {
@@ -227,11 +252,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (authed) {
+  if (authed || isPublicRoute) {
     return (
       <div
         className={`transition-all duration-700 ease-out ${
-          entered ? "opacity-100 scale-100" : "opacity-0 scale-[0.98]"
+          entered || isPublicRoute ? "opacity-100 scale-100" : "opacity-0 scale-[0.98]"
         }`}
       >
         {children}
@@ -242,6 +267,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setCodeMissing(false);
     if (password.length < 4) {
       setError("Password must be at least 4 characters.");
       return;
@@ -254,14 +280,18 @@ export function AuthGate({ children }: { children: ReactNode }) {
         await signUp({ fullName, email, password, refCode });
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-      if (mode === "signup") {
-        setRefCode("");
+      const msg = err instanceof Error ? err.message : "Something went wrong.";
+      if (msg === "RECEPTION_CODE_NOT_FOUND") {
+        setCodeMissing(true);
+      } else {
+        setError(msg);
       }
+      if (mode === "signup") setRefCode("");
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground font-sans">
@@ -411,6 +441,30 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   <span>{error}</span>
                 </div>
               )}
+
+              {codeMissing && (
+                <div className="rounded-xl border border-amber-400/40 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-4 text-xs text-amber-100 shadow-[0_0_32px_-12px_rgba(251,191,36,0.4)]">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-amber-200">Code not found.</div>
+                      <p className="mt-1 leading-relaxed text-amber-100/85">
+                        Please register at the{" "}
+                        <Link
+                          to="/reception"
+                          className="inline-flex items-center gap-1 font-semibold text-primary underline decoration-primary/50 underline-offset-2 transition hover:decoration-primary"
+                        >
+                          Reception Desk Portal
+                          <ArrowRight className="h-3 w-3" />
+                        </Link>{" "}
+                        to authorize your residence placement.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
 
               <button
                 type="submit"

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ReceptionRouteImport } from './routes/reception'
 import { Route as PromptLabRouteImport } from './routes/prompt-lab'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as IndexRouteImport } from './routes/index'
@@ -17,6 +18,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReceptionRoute = ReceptionRouteImport.update({
+  id: '/reception',
+  path: '/reception',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PromptLabRoute = PromptLabRouteImport.update({
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
   '/prompt-lab': typeof PromptLabRoute
+  '/reception': typeof ReceptionRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
   '/prompt-lab': typeof PromptLabRoute
+  '/reception': typeof ReceptionRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
   '/prompt-lab': typeof PromptLabRoute
+  '/reception': typeof ReceptionRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/history' | '/prompt-lab' | '/settings'
+  fullPaths: '/' | '/history' | '/prompt-lab' | '/reception' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/history' | '/prompt-lab' | '/settings'
-  id: '__root__' | '/' | '/history' | '/prompt-lab' | '/settings'
+  to: '/' | '/history' | '/prompt-lab' | '/reception' | '/settings'
+  id: '__root__' | '/' | '/history' | '/prompt-lab' | '/reception' | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HistoryRoute: typeof HistoryRoute
   PromptLabRoute: typeof PromptLabRoute
+  ReceptionRoute: typeof ReceptionRoute
   SettingsRoute: typeof SettingsRoute
 }
 
@@ -76,6 +86,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reception': {
+      id: '/reception'
+      path: '/reception'
+      fullPath: '/reception'
+      preLoaderRoute: typeof ReceptionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prompt-lab': {
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HistoryRoute: HistoryRoute,
   PromptLabRoute: PromptLabRoute,
+  ReceptionRoute: ReceptionRoute,
   SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport

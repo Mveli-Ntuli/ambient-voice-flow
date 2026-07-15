@@ -346,31 +346,42 @@ function Index() {
       <Nav />
       <ModeSelector active={modeKey} onChange={setModeKey} />
       <Hero mode={mode} auto={auto} setAuto={setAuto} transcript={extracted.transcript} />
-      <Checklist mode={mode} auto={auto} setAuto={setAuto} extracted={extracted} />
-      <Evidence
-        mode={mode}
-        pins={pins}
-        setPins={setPins}
-        thumbnails={thumbnails}
-        setThumbnails={setThumbnails}
-      />
-      <Signature
-        mode={mode}
-        onSignature={setSignatureData}
-        onVoicePrint={setVoicePrintHash}
-      />
-      <JobCard
-        mode={mode}
-        extracted={extracted}
-        pins={pins}
-        signatureData={signatureData}
-        voicePrintHash={voicePrintHash}
-        thumbnails={thumbnails}
-      />
+
+      {/* Split workspace: left = capture controls, right = live document */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-24">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="space-y-6 min-w-0 workspace-col">
+            <Checklist mode={mode} auto={auto} setAuto={setAuto} extracted={extracted} />
+            <Evidence
+              mode={mode}
+              pins={pins}
+              setPins={setPins}
+              thumbnails={thumbnails}
+              setThumbnails={setThumbnails}
+            />
+            <Signature
+              mode={mode}
+              onSignature={setSignatureData}
+              onVoicePrint={setVoicePrintHash}
+            />
+          </div>
+          <div className="lg:sticky lg:top-32 min-w-0 workspace-col">
+            <JobCard
+              mode={mode}
+              extracted={extracted}
+              pins={pins}
+              signatureData={signatureData}
+              voicePrintHash={voicePrintHash}
+              thumbnails={thumbnails}
+            />
+          </div>
+        </div>
+      </div>
       <Footer />
     </main>
   );
 }
+
 
 /* ============== SCROLL BANNER ============== */
 function ScrollBanner() {
@@ -463,110 +474,100 @@ function ModeSelector({ active, onChange }: { active: ModeKey; onChange: (m: Mod
   );
 }
 
-/* ============== HERO ============== */
+/* ============== HERO (compact) ============== */
 function Hero({
   mode, auto, setAuto, transcript,
 }: { mode: ModeConfig; auto: boolean; setAuto: (v: boolean) => void; transcript: string }) {
   const [localListening, setLocalListening] = useState(false);
   const active = auto || localListening;
-
-  const bars = useMemo(() => Array.from({ length: 64 }, (_, i) => i), []);
+  const bars = useMemo(() => Array.from({ length: 40 }, (_, i) => i), []);
   const displayed = auto ? transcript : "";
 
   return (
-    <section id="capture" className="relative pt-44 pb-24 md:pt-56 md:pb-32 grid-bg">
-      <div className="absolute inset-0 pointer-events-none [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_75%)]" />
+    <section id="capture" className="relative pt-36 pb-8 md:pt-40 md:pb-10 grid-bg">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 relative">
         <div className="text-center max-w-3xl mx-auto">
-          <div key={mode.key + "-badge"} className="reveal-up inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs text-muted-foreground mb-6">
-            <Sparkles className="h-3.5 w-3.5 text-primary" /> {mode.heroBadge}
+          <div key={mode.key + "-badge"} className="reveal-up inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
+            <Sparkles className="h-3 w-3 text-primary" /> {mode.heroBadge}
           </div>
-          <h1 key={mode.key + "-h1"} className="reveal-up text-4xl sm:text-5xl md:text-7xl font-display font-extrabold leading-[1.02] tracking-tight">
-            {mode.heroTitle.lead} <span className="text-gradient">{mode.heroTitle.mid}</span>.<br/>
-            The start of <span className="text-primary">{mode.heroTitle.tail}</span>
-          </h1>
-          <p className="reveal-up mt-6 text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
-            Zero-Form AVA listens, sees and signs — turning ambient speech into a
-            structured {mode.docTitle.toLowerCase()} in real time. {mode.heroPrompt}
+          <p className="reveal-up text-sm md:text-base text-foreground/80 leading-relaxed">
+            <span className="text-primary font-medium">Ambient Voice Intake</span> — Transform real-time speech into structured records.
           </p>
         </div>
 
-        {/* Orb */}
-        <div className="mt-14 md:mt-20 flex flex-col items-center">
+        {/* Compact control deck */}
+        <div className="mt-8 flex flex-col items-center">
           <button
             onClick={() => { setLocalListening((v) => !v); if (!localListening) setAuto(true); else setAuto(false); }}
             aria-label="Toggle voice capture"
-            className="relative h-56 w-56 md:h-72 md:w-72 rounded-full outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
+            className="group relative h-20 w-20 rounded-full outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
           >
             {active && (
               <>
                 <span className="absolute inset-0 rounded-full border border-primary/40 animate-ring-pulse" />
-                <span className="absolute inset-0 rounded-full border border-secondary/30 animate-ring-pulse" style={{ animationDelay: "0.6s" }} />
-                <span className="absolute inset-0 rounded-full border border-primary/20 animate-ring-pulse" style={{ animationDelay: "1.2s" }} />
-                <span className="absolute -inset-8 rounded-full opacity-60 blur-2xl pointer-events-none"
-                  style={{ background: "radial-gradient(circle, color-mix(in oklab, var(--color-primary) 50%, transparent), transparent 70%)" }} />
+                <span className="absolute inset-0 rounded-full border border-secondary/30 animate-ring-pulse" style={{ animationDelay: "0.5s" }} />
+                <span className="absolute -inset-4 rounded-full opacity-60 blur-xl pointer-events-none"
+                  style={{ background: "radial-gradient(circle, color-mix(in oklab, var(--color-primary) 55%, transparent), transparent 70%)" }} />
               </>
             )}
             <div
-              className={`relative h-full w-full rounded-full glass grid place-items-center overflow-hidden ${
-                active ? "animate-orb-listen glow-emerald" : "animate-orb-pulse glow-emerald"
+              className={`relative h-full w-full rounded-full glass grid place-items-center overflow-hidden transition-transform duration-300 group-hover:scale-105 ${
+                active ? "glow-emerald animate-orb-listen" : "glow-emerald"
               }`}
             >
               <div
-                className="absolute inset-2 rounded-full opacity-90"
+                className="absolute inset-1 rounded-full opacity-90"
                 style={{
                   background:
-                    "conic-gradient(from 180deg at 50% 50%, color-mix(in oklab, var(--color-primary) 45%, transparent), color-mix(in oklab, var(--color-secondary) 40%, transparent), color-mix(in oklab, var(--color-primary) 45%, transparent))",
-                  filter: "blur(24px)",
+                    "conic-gradient(from 180deg at 50% 50%, color-mix(in oklab, var(--color-primary) 50%, transparent), color-mix(in oklab, var(--color-secondary) 40%, transparent), color-mix(in oklab, var(--color-primary) 50%, transparent))",
+                  filter: "blur(10px)",
                 }}
               />
-              <div className="absolute inset-6 rounded-full bg-background/40 backdrop-blur-2xl border border-white/15"
-                   style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15), inset 0 -20px 40px rgba(0,0,0,0.4)" }} />
-              <div className="absolute top-6 left-10 right-10 h-10 rounded-full opacity-50"
-                   style={{ background: "radial-gradient(ellipse at center, rgba(255,255,255,0.65), transparent 70%)", filter: "blur(8px)" }} />
-              <Mic className={`relative h-14 w-14 md:h-16 md:w-16 ${active ? "text-primary" : "text-foreground/80"}`} />
+              <div className="absolute inset-2 rounded-full bg-background/40 backdrop-blur-xl border border-white/15" />
+              <Mic className={`relative h-6 w-6 ${active ? "text-primary" : "text-foreground/80"}`} />
             </div>
           </button>
 
-          <div className="mt-8 text-sm">
+          <div className="mt-3 text-xs">
             {active ? (
               <span className="inline-flex items-center gap-2 text-primary">
-                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                 Listening · streaming to AVA
               </span>
             ) : (
-              <span className="text-muted-foreground">Tap the sphere to start a {mode.label.toLowerCase()} session</span>
+              <span className="text-muted-foreground">Tap to start {mode.label.toLowerCase()} intake</span>
             )}
           </div>
 
-          <div className="mt-8 w-full max-w-2xl px-4">
-            <div className="flex items-center justify-center gap-[3px] h-20">
+          {/* Compact waveform */}
+          <div className="mt-3 w-full max-w-md">
+            <div className="flex items-center justify-center gap-[2px] h-8">
               {bars.map((i) => (
                 <span
                   key={i}
-                  className="w-[3px] sm:w-1 rounded-full"
+                  className="w-[3px] rounded-full"
                   style={{
-                    height: active ? `${15 + Math.abs(Math.sin(i * 0.7)) * 80}%` : "10%",
+                    height: active ? `${25 + Math.abs(Math.sin(i * 0.7)) * 70}%` : "20%",
                     background: "linear-gradient(180deg, var(--color-secondary), var(--color-primary))",
                     animation: active
                       ? `waveform ${0.5 + (i % 9) * 0.07}s ease-in-out ${i * 0.025}s infinite`
                       : "none",
-                    opacity: active ? 1 : 0.3,
-                    boxShadow: active ? "0 0 8px color-mix(in oklab, var(--color-primary) 50%, transparent)" : "none",
+                    opacity: active ? 1 : 0.35,
                   }}
                 />
               ))}
             </div>
           </div>
 
-          <div className="mt-6 w-full max-w-2xl min-h-28 glass rounded-2xl px-5 py-4 text-sm leading-relaxed">
+          {/* Live transcript preview */}
+          <div className="mt-4 w-full max-w-2xl glass rounded-xl px-4 py-2.5 text-xs leading-relaxed min-h-[3rem]">
             {displayed ? (
               <span className="text-foreground/90">
                 {displayed}
-                <span className="inline-block w-1.5 h-4 align-[-2px] ml-1 bg-primary animate-pulse" />
+                <span className="inline-block w-1 h-3 align-[-1px] ml-1 bg-primary animate-pulse" />
               </span>
             ) : (
-              <span className="text-muted-foreground italic">Your live transcript will appear here…</span>
+              <span className="text-muted-foreground italic">Live transcript will appear here…</span>
             )}
           </div>
         </div>
@@ -574,6 +575,7 @@ function Hero({
     </section>
   );
 }
+
 
 /* ============== CONFIDENCE CHECKLIST ============== */
 function Checklist({
@@ -1230,10 +1232,11 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
     const { x, y } = pos(e);
     const last = lastPt.current ?? { x, y };
     const mid = { x: (last.x + x) / 2, y: (last.y + y) / 2 };
-    // Simulated pressure: subtle width variation from pointer pressure (if any)
+    // Smooth ink: clamp pen width strictly 1.5–2.0 px
     const pressure = (e as unknown as { pressure?: number }).pressure;
-    const dynamicWidth = 1.2 + (pressure && pressure > 0 ? pressure * 1.4 : 0.6);
+    const dynamicWidth = Math.max(1.5, Math.min(2.0, 1.5 + (pressure && pressure > 0 ? pressure * 0.5 : 0.35)));
     ctx.lineWidth = dynamicWidth;
+
     ctx.beginPath();
     ctx.moveTo(last.x, last.y);
     ctx.quadraticCurveTo(last.x, last.y, mid.x, mid.y);
@@ -1400,6 +1403,9 @@ function JobCard({
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
+  const [dispatch, setDispatch] = useState<null | "sending" | "sent">(null);
+  const OFFICE_EMAIL = "ntuli.mveli@gmail.com";
+
 
   const exportPdf = async () => {
     setDone(false);
@@ -1570,6 +1576,36 @@ function JobCard({
       setProgress(100);
       doc.save(`${mode.docNumber}.pdf`);
       setDone(true);
+      // Trigger email dispatcher overlay + prefill mailto
+      setDispatch("sending");
+      setTimeout(() => {
+        setDispatch("sent");
+        const subject = encodeURIComponent(`[${mode.docTitle}] ${mode.docNumber} — ${extracted.name ?? "AVA capture"}`);
+        const bodyLines = [
+          `Central Office,`,
+          ``,
+          `Please find attached the finalized ${mode.docTitle} generated via Zero-Form AVA.`,
+          ``,
+          `Reference:        ${mode.docNumber}`,
+          `Resident:         ${extracted.name ?? "—"}`,
+          `Location:         ${extracted.location ?? "—"}`,
+          `Classification:   ${extracted.classification ?? "—"}`,
+          `Urgency:          ${extracted.urgency ?? "—"}`,
+          `Signature Hash:   ${voicePrintHash ? voicePrintHash.slice(0, 32) + "…" : "SHA-256 · pending"}`,
+          `Signature Captured: ${signatureData ? "Yes" : "No"}`,
+          `Damage Pins:      ${pins.length}`,
+          ``,
+          `Transcript:`,
+          extracted.transcript || "(awaiting voice)",
+          ``,
+          `— Attached: ${mode.docNumber}.pdf (please attach the file that was just downloaded to your device)`,
+        ];
+        const body = encodeURIComponent(bodyLines.join("\n"));
+        const mailto = `mailto:${OFFICE_EMAIL}?subject=${subject}&body=${body}`;
+        try { window.location.href = mailto; } catch {}
+        setTimeout(() => setDispatch(null), 2600);
+      }, 1600);
+
     } catch (err) {
       console.error("PDF export failed", err);
     } finally {
@@ -1644,9 +1680,72 @@ function JobCard({
           </aside>
         </div>
       </div>
+
+      {/* Email Dispatcher Overlay */}
+      {dispatch && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 backdrop-blur-md bg-black/60 animate-in fade-in duration-300">
+          <div className="w-full max-w-md rounded-2xl border border-primary/30 bg-[rgba(15,23,42,0.85)] p-6 shadow-[0_30px_100px_-20px_var(--primary)] backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-xl bg-primary/40 blur-md animate-pulse" />
+                <div className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-primary/40 bg-primary/10">
+                  {dispatch === "sending" ? (
+                    <svg className="h-5 w-5 text-primary animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-90" d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
+                    </svg>
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                  )}
+                </div>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] uppercase tracking-[0.3em] text-primary/80">Email dispatcher</div>
+                <div className="font-display font-bold text-sm truncate">
+                  {dispatch === "sending" ? "Encrypting & transmitting…" : "Ready to send"}
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
+              {dispatch === "sending"
+                ? "Securely transmitting encrypted PDF report to central office ("
+                : "Prefilled draft opened in your mail client for "}
+              <span className="text-primary font-mono">{OFFICE_EMAIL}</span>
+              {dispatch === "sending" ? ")…" : ". Attach the downloaded PDF and hit send."}
+            </p>
+
+            {/* Progress bars */}
+            <div className="mt-4 space-y-2">
+              {["Compiling document state", "AES-256 encrypting payload", "Routing to central office"].map((step, i) => (
+                <div key={step} className="flex items-center gap-2 text-[11px]">
+                  <span className={`h-1.5 w-1.5 rounded-full ${dispatch === "sent" || i < 2 ? "bg-primary" : "bg-primary/50 animate-pulse"}`} />
+                  <span className={dispatch === "sent" ? "text-foreground" : "text-muted-foreground"}>{step}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 flex items-center justify-between gap-2">
+              <a
+                href={`mailto:${OFFICE_EMAIL}`}
+                className="text-[11px] text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary transition"
+              >
+                Open mail again
+              </a>
+              <button
+                onClick={() => setDispatch(null)}
+                className="text-[11px] text-muted-foreground hover:text-foreground transition px-3 py-1.5 rounded-md border border-white/10 bg-white/[0.03]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
+
 
 function Document({
   mode, extracted, pins, signatureData, voicePrintHash, thumbnails,
