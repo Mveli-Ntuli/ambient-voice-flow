@@ -6,6 +6,7 @@ import {
   type ReactNode,
   type FormEvent,
 } from "react";
+import { useRouterState, Link } from "@tanstack/react-router";
 import {
   Mic,
   Github,
@@ -17,13 +18,16 @@ import {
   User as UserIcon,
   KeyRound,
   Info,
+  ArrowRight,
 } from "lucide-react";
 
 const USERS_KEY = "ava.mock.users";
 const SESSION_KEY = "ava.mock.session";
+const RECEPTION_KEY = "ava.mock.reception";
 
-/* Mock reception database — front-desk placement codes */
-const RECEPTION_DB: Record<string, { room: string; residence: string }> = {
+/* Mock reception database — front-desk placement codes (seed defaults) */
+const RECEPTION_SEED: Record<string, { room: string; residence: string }> = {
+
   "NMU-RES-9942": { room: "204B", residence: "North Campus Hall" },
   "NMU-RES-1053": { room: "112A", residence: "Marina Court" },
   "NMU-RES-2077": { room: "308C", residence: "Harbor Wing" },
