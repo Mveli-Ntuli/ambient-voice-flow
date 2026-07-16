@@ -6,100 +6,63 @@ import {
   type ReactNode,
   type FormEvent,
 } from "react";
-import { useRouterState, Link } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
 import {
-  Mic,
-  Github,
-  Sparkles,
   Loader2,
-  Mail,
   Lock,
   AlertCircle,
-  User as UserIcon,
+  Shield,
   KeyRound,
-  Info,
-  ArrowRight,
+  IdCard,
+  Radio,
+  ArrowLeft,
+  Sparkles,
 } from "lucide-react";
+import { useDepartment } from "@/lib/department";
+import { DepartmentLanding } from "@/components/department-landing";
 
-const USERS_KEY = "ava.mock.users";
 const SESSION_KEY = "ava.mock.session";
 const RECEPTION_KEY = "ava.mock.reception";
 
-/* Mock reception database — front-desk placement codes (seed defaults) */
+/* ---------- Reception DB (kept for backward-compat with /reception route) ---------- */
 const RECEPTION_SEED: Record<string, { room: string; residence: string }> = {
-
   "NMU-RES-9942": { room: "204B", residence: "North Campus Hall" },
   "NMU-RES-1053": { room: "112A", residence: "Marina Court" },
   "NMU-RES-2077": { room: "308C", residence: "Harbor Wing" },
 };
-
 export function loadReceptionDB(): Record<string, { room: string; residence: string; name?: string; nationalId?: string; paid?: boolean; createdAt?: number }> {
   if (typeof window === "undefined") return { ...RECEPTION_SEED };
   try {
     const stored = JSON.parse(window.localStorage.getItem(RECEPTION_KEY) || "{}");
     return { ...RECEPTION_SEED, ...stored };
-  } catch {
-    return { ...RECEPTION_SEED };
-  }
+  } catch { return { ...RECEPTION_SEED }; }
 }
-
 export function writeReceptionDB(db: Record<string, { room: string; residence: string; name?: string; nationalId?: string; paid?: boolean; createdAt?: number }>) {
-  try {
-    window.localStorage.setItem(RECEPTION_KEY, JSON.stringify(db));
-  } catch {}
+  try { window.localStorage.setItem(RECEPTION_KEY, JSON.stringify(db)); } catch {}
+}
+export function userScopedKey(base: string, email: string | undefined | null) {
+  const who = (email || "anonymous").trim().toLowerCase();
+  return `ava.user::${who}::${base}`;
 }
 
-
-type UserRecord = {
-  email: string;
-  pwd: string;
-  fullName: string;
-  refCode: string;
-  room: string;
-  residence: string;
-  createdAt: number;
-};
+/* ---------- Agent session ---------- */
 type Session = {
-  email: string;
+  badge: string;
+  station: string;
   fullName: string;
   refCode: string;
   room: string;
   residence: string;
+  email: string;
   loggedInAt: number;
 };
 
-async function hashPassword(pwd: string): Promise<string> {
-  if (typeof crypto !== "undefined" && crypto.subtle) {
-    const buf = new TextEncoder().encode(pwd + "::ava-salt");
-    const digest = await crypto.subtle.digest("SHA-256", buf);
-    return Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
-  return btoa(pwd + "::ava-salt");
-}
-
-function readUsers(): Record<string, UserRecord> {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(window.localStorage.getItem(USERS_KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
-function writeUsers(u: Record<string, UserRecord>) {
-  try {
-    window.localStorage.setItem(USERS_KEY, JSON.stringify(u));
-  } catch {}
-}
 function readSession(): Session | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(SESSION_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 function writeSession(s: Session | null) {
   try {
@@ -108,24 +71,14 @@ function writeSession(s: Session | null) {
   } catch {}
 }
 
-/* Per-user scoped storage helper (job cards, transcripts, signatures) */
-export function userScopedKey(base: string, email: string | undefined | null) {
-  const who = (email || "anonymous").trim().toLowerCase();
-  return `ava.user::${who}::${base}`;
-}
-
 type AuthContextValue = {
   ready: boolean;
   authed: boolean;
   session: Session | null;
-  signUp: (input: {
-    fullName: string;
-    email: string;
-    password: string;
-    refCode: string;
-  }) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (input: { badge: string; password: string; station: string }) => Promise<void>;
   signOut: () => void;
+  // Legacy back-compat (no-op stubs)
+  signUp: (input: { fullName: string; email: string; password: string; refCode: string }) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -148,63 +101,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ready,
     authed: !!session,
     session,
-    signUp: async ({ fullName, email, password, refCode }) => {
-      const key = email.trim().toLowerCase();
-      const code = refCode.trim().toUpperCase();
-      const db = loadReceptionDB();
-      const record = db[code];
-      if (!record) {
-        throw new Error("RECEPTION_CODE_NOT_FOUND");
-      }
-
-      if (!fullName.trim()) throw new Error("Please enter your full name.");
-      const users = readUsers();
-      if (users[key]) throw new Error("An account with this email already exists. Please sign in.");
-      const pwd = await hashPassword(password);
-      const rec: UserRecord = {
-        email: key,
-        pwd,
-        fullName: fullName.trim(),
-        refCode: code,
-        room: record.room,
-        residence: record.residence,
-        createdAt: Date.now(),
-      };
-      users[key] = rec;
-      writeUsers(users);
+    signIn: async ({ badge, password, station }) => {
+      if (!badge.trim() || !station.trim()) throw new Error("Badge and station code are required.");
+      if (password.length < 4) throw new Error("Password must be at least 4 characters.");
       const s: Session = {
-        email: key,
-        fullName: rec.fullName,
-        refCode: code,
-        room: rec.room,
-        residence: rec.residence,
+        badge: badge.trim().toUpperCase(),
+        station: station.trim().toUpperCase(),
+        fullName: `Agent ${badge.trim().toUpperCase()}`,
+        refCode: station.trim().toUpperCase(),
+        room: station.trim().toUpperCase(),
+        residence: "Dispatch Unit",
+        email: `${badge.trim().toLowerCase()}@dispatch.local`,
         loggedInAt: Date.now(),
       };
       writeSession(s);
       setSession(s);
     },
-    signIn: async (email, password) => {
-      const key = email.trim().toLowerCase();
-      const users = readUsers();
-      const rec = users[key];
-      if (!rec) throw new Error("No account found for this email. Create one first.");
-      const pwd = await hashPassword(password);
-      if (rec.pwd !== pwd) throw new Error("Incorrect password for this email.");
-      const s: Session = {
-        email: key,
-        fullName: rec.fullName,
-        refCode: rec.refCode,
-        room: rec.room,
-        residence: rec.residence,
-        loggedInAt: Date.now(),
-      };
-      writeSession(s);
-      setSession(s);
-    },
-    signOut: () => {
-      writeSession(null);
-      setSession(null);
-    },
+    signUp: async () => { throw new Error("Sign-up disabled in Dispatch mode."); },
+    signOut: () => { writeSession(null); setSession(null); },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -212,39 +126,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within <AuthProvider>");
-  }
+  if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");
   return ctx;
 }
-
-/* Back-compat alias so existing imports keep working */
 export const useDemoAuth = useAuth;
 
+/* ---------- Auth Gate ---------- */
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { ready, authed, signIn, signUp } = useAuth();
+  const { ready, authed, signIn } = useAuth();
+  const { ready: deptReady, department, clear: clearDept } = useDepartment();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isPublicRoute = pathname === "/reception";
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [fullName, setFullName] = useState("");
-  const [refCode, setRefCode] = useState("");
-  const [email, setEmail] = useState("");
+
+  const [badge, setBadge] = useState("");
   const [password, setPassword] = useState("");
+  const [station, setStation] = useState("");
   const [loading, setLoading] = useState(false);
   const [entered, setEntered] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [codeMissing, setCodeMissing] = useState(false);
-
 
   useEffect(() => {
-    if (authed) {
+    if (authed && department) {
       const t = setTimeout(() => setEntered(true), 30);
       return () => clearTimeout(t);
     }
     setEntered(false);
-  }, [authed]);
+  }, [authed, department]);
 
-  if (!ready) {
+  if (!ready || !deptReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -252,56 +161,51 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  if (authed || isPublicRoute) {
+  // Public routes bypass everything
+  if (isPublicRoute) return <>{children}</>;
+
+  // STEP 1: Department selection
+  if (!department) return <DepartmentLanding />;
+
+  // STEP 3+: Authenticated
+  if (authed) {
     return (
-      <div
-        className={`transition-all duration-700 ease-out ${
-          entered || isPublicRoute ? "opacity-100 scale-100" : "opacity-0 scale-[0.98]"
-        }`}
-      >
+      <div className={`transition-all duration-700 ease-out ${entered ? "opacity-100 scale-100" : "opacity-0 scale-[0.98]"}`}>
         {children}
       </div>
     );
   }
 
+  // STEP 2: Themed agent login
+  const Icon = department.icon;
+  const accent = department.theme.accentHex;
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    setCodeMissing(false);
-    if (password.length < 4) {
-      setError("Password must be at least 4 characters.");
-      return;
-    }
     setLoading(true);
     try {
-      if (mode === "signin") {
-        await signIn(email, password);
-      } else {
-        await signUp({ fullName, email, password, refCode });
-      }
+      await signIn({ badge, password, station });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Something went wrong.";
-      if (msg === "RECEPTION_CODE_NOT_FOUND") {
-        setCodeMissing(true);
-      } else {
-        setError(msg);
-      }
-      if (mode === "signup") setRefCode("");
+      setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
 
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground font-sans">
-      {/* Orbital glow */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 -left-40 h-[38rem] w-[38rem] rounded-full bg-primary/20 blur-3xl animate-[ava-orb-a_18s_ease-in-out_infinite]" />
-        <div className="absolute -bottom-40 -right-40 h-[42rem] w-[42rem] rounded-full bg-secondary/20 blur-3xl animate-[ava-orb-b_22s_ease-in-out_infinite]" />
-        <div className="absolute left-1/2 top-1/2 h-[26rem] w-[26rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-3xl animate-[ava-orb-c_14s_ease-in-out_infinite]" />
         <div
-          className="absolute inset-0 opacity-[0.06]"
+          className="absolute -top-40 -left-40 h-[38rem] w-[38rem] rounded-full blur-3xl animate-[ava-orb-a_18s_ease-in-out_infinite]"
+          style={{ background: `${accent}33` }}
+        />
+        <div
+          className="absolute -bottom-40 -right-40 h-[42rem] w-[42rem] rounded-full blur-3xl animate-[ava-orb-b_22s_ease-in-out_infinite]"
+          style={{ background: `${accent}22` }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.05]"
           style={{
             backgroundImage:
               "linear-gradient(rgba(255,255,255,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.35) 1px, transparent 1px)",
@@ -311,129 +215,68 @@ export function AuthGate({ children }: { children: ReactNode }) {
       </div>
 
       <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md">
-          <div className="mb-8 flex items-center justify-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-xl bg-primary/40 blur-lg" />
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 backdrop-blur">
-                <Mic className="h-5 w-5 text-primary" />
-              </div>
+        <div className="w-full max-w-md flex flex-col gap-y-6">
+          <button
+            type="button"
+            onClick={clearDept}
+            className="inline-flex items-center gap-2 self-start rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground hover:bg-white/[0.06]"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Change agency
+          </button>
+
+          <div className="flex flex-col items-center gap-y-3 text-center">
+            <div
+              className="flex h-14 w-14 items-center justify-center rounded-2xl border shadow-inner"
+              style={{ background: `${accent}22`, borderColor: `${accent}55` }}
+            >
+              <Icon className="h-7 w-7" style={{ color: accent }} />
             </div>
-            <div className="font-display text-xl font-bold tracking-tight">
-              Zero-Form <span className="text-primary">AVA</span>
+            <div className="flex flex-col gap-y-1">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+                {department.tagline}
+              </div>
+              <div className="font-display text-2xl font-bold leading-tight tracking-tight">
+                {department.agency}
+              </div>
             </div>
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-[rgba(15,23,42,0.65)] p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-8">
-            <div className="mb-6 flex rounded-full border border-white/10 bg-black/30 p-1 text-sm">
-              {(["signin", "signup"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => {
-                    setMode(m);
-                    setError(null);
-                  }}
-                  className={`flex-1 rounded-full px-4 py-2 font-medium transition-all ${
-                    mode === m
-                      ? "bg-primary text-primary-foreground shadow-[0_0_24px_-6px_var(--primary)]"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {m === "signin" ? "Sign in" : "Create account"}
-                </button>
-              ))}
+            <div className="flex flex-col gap-y-2">
+              <h1 className="font-display text-xl font-bold tracking-tight leading-snug">
+                Secure Agent Login
+              </h1>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Enter your credentials to activate the command terminal.
+              </p>
             </div>
 
-            <h1 className="font-display text-2xl font-bold tracking-tight">
-              {mode === "signin" ? "Welcome back" : "Reception check-in"}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {mode === "signin"
-                ? "Enter your credentials to open the intake console."
-                : "Register with your placement code to activate your workspace."}
-            </p>
-
-            <form onSubmit={submit} className="mt-6 space-y-4">
-              {mode === "signup" && (
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Full name
-                  </span>
-                  <div className="group relative">
-                    <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                    <input
-                      type="text"
-                      required
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Mveli Ntuli"
-                      className="w-full rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
-                    />
-                  </div>
-                </label>
-              )}
-
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Email
-                </span>
-                <div className="group relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@company.com"
-                    className="w-full rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
-                  />
-                </div>
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  Password
-                </span>
-                <div className="group relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                  <input
-                    type="password"
-                    required
-                    minLength={4}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
-                  />
-                </div>
-              </label>
-
-              {mode === "signup" && (
-                <label className="block">
-                  <span className="mb-1.5 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Residence reference / Placement code
-                    <span
-                      title="Don't have a code? Use test code: NMU-RES-9942"
-                      className="inline-flex cursor-help items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary/90 normal-case"
-                    >
-                      <Info className="h-2.5 w-2.5" />
-                      test: NMU-RES-9942
-                    </span>
-                  </span>
-                  <div className="group relative">
-                    <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                    <input
-                      type="text"
-                      required
-                      value={refCode}
-                      onChange={(e) => setRefCode(e.target.value.toUpperCase())}
-                      placeholder="NMU-RES-XXXX"
-                      className="w-full rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm font-mono tracking-wider outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
-                    />
-                  </div>
-                </label>
-              )}
+            <form onSubmit={submit} className="mt-6 flex flex-col gap-y-4">
+              <FormField
+                label="Agent / Officer Badge Number"
+                icon={IdCard}
+                value={badge}
+                onChange={setBadge}
+                placeholder="e.g. SAPS-441982"
+                mono
+              />
+              <FormField
+                label="Password"
+                icon={Lock}
+                value={password}
+                onChange={setPassword}
+                placeholder="••••••••"
+                type="password"
+              />
+              <FormField
+                label="Dispatch Station / Unit Code"
+                icon={Radio}
+                value={station}
+                onChange={setStation}
+                placeholder="e.g. STN-04"
+                mono
+              />
 
               {error && (
                 <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
@@ -442,92 +285,68 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 </div>
               )}
 
-              {codeMissing && (
-                <div className="rounded-xl border border-amber-400/40 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-4 text-xs text-amber-100 shadow-[0_0_32px_-12px_rgba(251,191,36,0.4)]">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-                    <div className="flex-1">
-                      <div className="font-semibold text-amber-200">Code not found.</div>
-                      <p className="mt-1 leading-relaxed text-amber-100/85">
-                        Please register at the{" "}
-                        <Link
-                          to="/reception"
-                          className="inline-flex items-center gap-1 font-semibold text-primary underline decoration-primary/50 underline-offset-2 transition hover:decoration-primary"
-                        >
-                          Reception Desk Portal
-                          <ArrowRight className="h-3 w-3" />
-                        </Link>{" "}
-                        to authorize your residence placement.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-
-
               <button
                 type="submit"
                 disabled={loading}
-                className="group relative w-full overflow-hidden rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_0_32px_-8px_var(--primary)] transition-all hover:shadow-[0_0_44px_-4px_var(--primary)] disabled:opacity-60"
+                className="group relative mt-2 w-full overflow-hidden rounded-lg py-3 text-sm font-semibold text-primary-foreground transition-all disabled:opacity-60"
+                style={{
+                  background: accent,
+                  boxShadow: `0 0 32px -8px ${accent}, 0 0 60px -12px ${accent}`,
+                }}
               >
                 <span className="relative z-10 inline-flex items-center justify-center gap-2">
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {mode === "signin" ? "Sign in" : "Check in"}
+                  <Shield className="h-4 w-4" />
+                  Access Command Terminal
                 </span>
-                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               </button>
             </form>
 
-            <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-              <div className="h-px flex-1 bg-white/10" />
-              <span>social sign-in (coming soon)</span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 opacity-60">
-              <button
-                type="button"
-                disabled
-                title="Social sign-in requires Lovable Cloud auth — not enabled in demo mode."
-                className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] py-2.5 text-sm font-medium cursor-not-allowed"
-              >
-                <GoogleIcon className="h-4 w-4" />
-                Google
-              </button>
-              <button
-                type="button"
-                disabled
-                title="Social sign-in requires Lovable Cloud auth — not enabled in demo mode."
-                className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] py-2.5 text-sm font-medium cursor-not-allowed"
-              >
-                <Github className="h-4 w-4" />
-                GitHub
-              </button>
-            </div>
-
-            <p className="mt-6 text-center text-[11px] text-muted-foreground/70">
+            <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground/70">
               <Sparkles className="mr-1 inline h-3 w-3 text-primary" />
-              Credentials are stored locally on this device (mock database).
+              Demo terminal · any badge + station accepts with 4+ char password.
             </p>
           </div>
-
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            Protected by ambient session encryption · v1.0
-          </p>
         </div>
       </div>
     </div>
   );
 }
 
-function GoogleIcon({ className }: { className?: string }) {
+function FormField({
+  label,
+  icon: Icon,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  mono,
+}: {
+  label: string;
+  icon: typeof KeyRound;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  mono?: boolean;
+}) {
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <path
-        fill="#EA4335"
-        d="M12 10.2v3.9h5.5c-.2 1.4-1.6 4.1-5.5 4.1-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.5 14.6 2.5 12 2.5 6.8 2.5 2.6 6.7 2.6 12S6.8 21.5 12 21.5c6.9 0 9.4-4.9 9.4-8.8 0-.6-.1-1-.1-1.5H12z"
-      />
-    </svg>
+    <label className="flex flex-col gap-y-1.5">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <div className="group relative">
+        <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+        <input
+          type={type}
+          required
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={`w-full rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25 ${mono ? "font-mono tracking-wider" : ""}`}
+        />
+      </div>
+    </label>
   );
 }
