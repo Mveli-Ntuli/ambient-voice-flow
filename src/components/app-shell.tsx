@@ -44,11 +44,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background text-foreground font-sans">
       {/* Desktop sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 hidden md:flex flex-col h-screen transition-[width] duration-300 ease-out ${
+        className={`fixed inset-y-0 left-0 z-40 hidden md:flex flex-col h-screen justify-between transition-[width] duration-300 ease-out ${
           collapsed ? "w-[76px]" : "w-64"
         }`}
       >
-        <div className="m-3 flex flex-1 min-h-0 flex-col rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-2xl">
+        <div className="flex h-full min-h-0 flex-1 flex-col border-r border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-2xl">
+
 
           <div className="flex items-center gap-3 px-4 py-5">
             <div className="relative shrink-0">
