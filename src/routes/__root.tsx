@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthGate, AuthProvider } from "../components/auth-gate";
 import { AppShell } from "../components/app-shell";
+import { DepartmentProvider } from "../lib/department";
 
 function NotFoundComponent() {
   return (
