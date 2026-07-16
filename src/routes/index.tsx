@@ -1,1910 +1,711 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Mic, Sparkles, ShieldCheck, Camera, FileSignature,
-  FileText, CheckCircle2, Circle, MapPin, AlertTriangle, User, MessageSquareText,
-  Waves, Eraser, Download, ArrowRight, ImagePlus, X, Pin, Zap,
-  HardHat, Home, BedDouble, Car, ChefHat,
+  Mic, MicOff, Radio, Sparkles, Download, PlayCircle,
+  Shield, AlertTriangle, MapPin, FileText, Loader2, CheckCircle2,
 } from "lucide-react";
+import jsPDF from "jspdf";
+import { useDepartment, DEPARTMENTS, type DepartmentConfig, type DepartmentField } from "@/lib/department";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Zero-Form AVA — Ambient Voice App" },
-      { name: "description", content: "Eliminate forms forever. Ambient voice, vision and signature — generating live job cards in real time." },
-      { property: "og:title", content: "Zero-Form AVA" },
-      { property: "og:description", content: "The end of form-filling." },
+      { title: "Dispatch Portal — Zero-Form AVA" },
+      { name: "description", content: "Government Dispatch command terminal. Ambient voice, live transcription and department-specific incident documents." },
     ],
   }),
-  component: Index,
+  component: DispatchPortal,
 });
 
-/* ============== MODES ============== */
-type ModeKey = "contractor" | "landlord" | "hotel" | "transport" | "kitchen";
+/* ---------- Regex extractor: parses transcript into department fields ---------- */
+type Extracted = Record<string, string>;
 
-type ChecklistKey = "name" | "classification" | "urgency" | "location";
+function extractFromTranscript(dep: DepartmentConfig, transcript: string): Extracted {
+  const out: Extracted = {};
+  const t = transcript;
+  const lower = t.toLowerCase();
 
-type ModeConfig = {
-  key: ModeKey;
-  label: string;
-  icon: typeof HardHat;
-  accent: "primary" | "secondary";
-  heroBadge: string;
-  heroTitle: { lead: string; mid: string; tail: string };
-  heroPrompt: string;
-  transcript: string;
-  extraction: Record<ChecklistKey, { at: number; value: string }>;
-  fields: Record<ChecklistKey, { label: string; icon: typeof User }>;
-  idFields: { label: string; value: string }[];
-  schematic: "house" | "car";
-  schematicHint: string;
-  consentTitle: string;
-  consentPrompt: string;
-  docTitle: string;
-  docNumber: string;
-  docContactLabel: string;
-  docContactValue: string;
-  docFooter: string;
-};
+  // Cross-department: location heuristic
+  const loc = t.match(/at ([\w\s\d,]+?)(?:\.|,|$| —|;| heading| \bin\b)/i);
+  if (loc) out.location = loc[1].trim();
 
-const MODES: Record<ModeKey, ModeConfig> = {
-  contractor: {
-    key: "contractor",
-    label: "Contractor",
-    icon: HardHat,
-    accent: "primary",
-    heroBadge: "Contractor Mode · Field service",
-    heroTitle: { lead: "The end of", mid: "forms", tail: "conversation." },
-    heroPrompt: "Tap the sphere. Just describe the job.",
-    transcript:
-      "Hi, this is Daniel Okafor. There is an active ceiling leak dripping water near my electrical fixtures at 14 Marina Drive, apartment 7B. It's urgent — water is pooling on the kitchen counter and I'm worried about a short circuit.",
-    extraction: {
-      name: { at: 22, value: "Daniel Okafor" },
-      classification: { at: 60, value: "Plumbing · water ingress + electrical risk" },
-      location: { at: 130, value: "14 Marina Drive, Apt 7B" },
-      urgency: { at: 170, value: "High — dispatch within 2h" },
-    },
-    fields: {
-      name: { label: "Customer Name", icon: User },
-      classification: { label: "Issue Classification", icon: MessageSquareText },
-      urgency: { label: "Urgency Level", icon: AlertTriangle },
-      location: { label: "Location", icon: MapPin },
-    },
-    idFields: [
-      { label: "Full Name", value: "Daniel Okafor" },
-      { label: "ID Number", value: "A1 442 998 21" },
-      { label: "Date of Birth", value: "1991-04-12" },
-      { label: "Expiry", value: "2029-11-30" },
-    ],
-    schematic: "house",
-    schematicHint: "Tap anywhere on the property to drop a damage pin",
-    consentTitle: "Voice signature & consent",
-    consentPrompt: "I authorize this submission.",
-    docTitle: "Job Card",
-    docNumber: "AVA-2026-00471",
-    docContactLabel: "Contact",
-    docContactValue: "+44 7700 900 421",
-    docFooter: "Dispatch authorised",
-  },
-  landlord: {
-    key: "landlord",
-    label: "Landlord / Tenant",
-    icon: Home,
-    accent: "primary",
-    heroBadge: "Landlord Mode · Tenancy",
-    heroTitle: { lead: "The end of", mid: "leases on paper", tail: "agreement." },
-    heroPrompt: "Tap the sphere. Speak the tenancy terms.",
-    transcript:
-      "Hi, this is Amara Okonkwo confirming the lease for apartment 7B at 14 Marina Drive. Twelve-month term starting first of July, rent is two thousand four hundred per month, and I agree to all standard tenancy clauses.",
-    extraction: {
-      name: { at: 22, value: "Amara Okonkwo" },
-      classification: { at: 70, value: "12-month residential lease" },
-      location: { at: 120, value: "Apartment 7B, 14 Marina Drive" },
-      urgency: { at: 170, value: "Move-in 01 Jul 2026" },
-    },
-    fields: {
-      name: { label: "Tenant Name", icon: User },
-      classification: { label: "Lease Terms", icon: FileText },
-      urgency: { label: "Move-in Date", icon: AlertTriangle },
-      location: { label: "Apartment Number", icon: MapPin },
-    },
-    idFields: [
-      { label: "Tenant Name", value: "Amara Okonkwo" },
-      { label: "Tenancy ID", value: "LSE-2026-7B-014" },
-      { label: "Lease Start", value: "2026-07-01" },
-      { label: "Lease End", value: "2027-06-30" },
-    ],
-    schematic: "house",
-    schematicHint: "Tap the unit floorplan to flag pre-existing damage",
-    consentTitle: "Lease signature & agreement",
-    consentPrompt: "I agree to the lease terms as stated.",
-    docTitle: "Tenancy Agreement",
-    docNumber: "LSE-2026-7B-014",
-    docContactLabel: "Landlord",
-    docContactValue: "Marina Holdings Ltd",
-    docFooter: "Lease ratified",
-  },
-  hotel: {
-    key: "hotel",
-    label: "Hotel Guest",
-    icon: BedDouble,
-    accent: "secondary",
-    heroBadge: "Hotel Guest Mode · Concierge",
-    heroTitle: { lead: "The end of", mid: "service tickets", tail: "request." },
-    heroPrompt: "Tap the sphere. Just ask the room.",
-    transcript:
-      "Hi, this is room 1208. Could I please get fresh towels and an extra pillow? Also the air conditioning isn't cooling — could maintenance take a look this afternoon? Charge anything required to my room.",
-    extraction: {
-      name: { at: 22, value: "Suite 1208 · M. Reyes" },
-      classification: { at: 80, value: "Towels, pillow + A/C maintenance" },
-      location: { at: 35, value: "Room 1208" },
-      urgency: { at: 170, value: "Same-day · before 18:00" },
-    },
-    fields: {
-      name: { label: "Guest Name", icon: User },
-      classification: { label: "Immediate Guest Request", icon: MessageSquareText },
-      urgency: { label: "Requested By", icon: AlertTriangle },
-      location: { label: "Room Number", icon: MapPin },
-    },
-    idFields: [
-      { label: "Guest Name", value: "Mateo Reyes" },
-      { label: "Folio Number", value: "HTL-1208-09" },
-      { label: "Check-in", value: "2026-06-29" },
-      { label: "Check-out", value: "2026-07-02" },
-    ],
-    schematic: "house",
-    schematicHint: "Tap the room layout to mark the service area",
-    consentTitle: "Guest room-charge consent",
-    consentPrompt: "I authorize charges to my room folio.",
-    docTitle: "Hotel Guest Request Card",
-    docNumber: "HTL-1208-09",
-    docContactLabel: "Folio",
-    docContactValue: "Room 1208 · Suite",
-    docFooter: "Charge authorised to folio",
-  },
-  transport: {
-    key: "transport",
-    label: "Transport / Bolt",
-    icon: Car,
-    accent: "secondary",
-    heroBadge: "Transport Mode · Incident",
-    heroTitle: { lead: "The end of", mid: "incident forms", tail: "voice report." },
-    heroPrompt: "Tap the sphere. Describe the incident.",
-    transcript:
-      "This is driver Kenji Watanabe, vehicle LP 47 KZA. Around 14:10 a passenger spilled coffee across the rear seat and a minor collision with a curb scuffed the front-right bumper. No injuries, no third party involved.",
-    extraction: {
-      name: { at: 22, value: "Kenji Watanabe · DRV-88421" },
-      classification: { at: 80, value: "Collision + interior spill" },
-      location: { at: 50, value: "LP 47 KZA · Bolt fleet" },
-      urgency: { at: 170, value: "Same-shift · low severity" },
-    },
-    fields: {
-      name: { label: "Driver ID", icon: User },
-      classification: { label: "Incident Type", icon: AlertTriangle },
-      urgency: { label: "Severity", icon: Zap },
-      location: { label: "Vehicle License", icon: Car },
-    },
-    idFields: [
-      { label: "Driver Name", value: "Kenji Watanabe" },
-      { label: "Driver ID", value: "DRV-88421" },
-      { label: "License Plate", value: "LP 47 KZA" },
-      { label: "Vehicle", value: "Toyota Prius · 2024" },
-    ],
-    schematic: "car",
-    schematicHint: "Tap the chassis to pinpoint damage on the vehicle",
-    consentTitle: "Driver incident attestation",
-    consentPrompt: "I confirm this incident report is accurate.",
-    docTitle: "Bolt Driver Incident Report",
-    docNumber: "BLT-INC-2026-00471",
-    docContactLabel: "Fleet",
-    docContactValue: "Bolt EU · Lagos hub",
-    docFooter: "Submitted to fleet ops",
-  },
-  kitchen: {
-    key: "kitchen",
-    label: "Kitchen Staff",
-    icon: ChefHat,
-    accent: "primary",
-    heroBadge: "Kitchen Mode · Equipment",
-    heroTitle: { lead: "The end of", mid: "paper logs", tail: "shift report." },
-    heroPrompt: "Tap the sphere. Report the equipment fault.",
-    transcript:
-      "This is sous chef Priya Menon on the hot line. The combi oven, serial CMB-44210, has lost steam pressure mid-service. It's slowing plating by roughly four minutes per ticket — we need engineering before tomorrow's dinner cover.",
-    extraction: {
-      name: { at: 22, value: "Priya Menon · Sous chef" },
-      classification: { at: 70, value: "Combi oven · steam pressure loss" },
-      location: { at: 110, value: "Hot line · Station 3" },
-      urgency: { at: 170, value: "+4 min per ticket · high impact" },
-    },
-    fields: {
-      name: { label: "Reporting Staff", icon: User },
-      classification: { label: "Equipment Serial Number", icon: FileText },
-      urgency: { label: "Impact on Service", icon: AlertTriangle },
-      location: { label: "Kitchen Location", icon: MapPin },
-    },
-    idFields: [
-      { label: "Staff Name", value: "Priya Menon" },
-      { label: "Staff ID", value: "KIT-0421" },
-      { label: "Section", value: "Hot line · Station 3" },
-      { label: "Shift", value: "Evening · 16:00–24:00" },
-    ],
-    schematic: "house",
-    schematicHint: "Tap the kitchen layout to flag the affected station",
-    consentTitle: "Shift supervisor attestation",
-    consentPrompt: "I confirm this equipment report is accurate.",
-    docTitle: "Kitchen Equipment Report",
-    docNumber: "KIT-EQ-2026-00471",
-    docContactLabel: "Venue",
-    docContactValue: "Marina Grand · Kitchen 2",
-    docFooter: "Routed to engineering",
-  },
-};
+  if (dep.key === "police") {
+    // Suspect
+    const suspect = t.match(/suspect (?:is )?([^.]+?)(?:\.|,)/i);
+    if (suspect) out.suspect = suspect[1].trim();
+    // Weapons
+    if (/\b(armed|handgun|firearm|pistol|rifle|knife|weapon)\b/i.test(t)) out.weapons = "Yes";
+    // Vehicle make/model  (word capitalized after "in a" or "vehicle")
+    const veh = t.match(/(?:in a|driving a|vehicle[: ]+)\s*([A-Z][a-z]+ [A-Z][a-z]+(?:\s*\([^)]+\))?)/);
+    if (veh) out.vehicleMake = veh[1].trim();
+    // Plate: uppercase letters/digits/spaces
+    const plate = t.match(/\b([A-Z]{2}\s?\d{2,3}\s?\d{2,4}|[A-Z]{2,3}\s?\d{3,4})\b/);
+    if (plate) out.vehiclePlate = plate[1].trim();
+    // Case category
+    if (/armed robbery/i.test(t)) out.caseCategory = "Armed Robbery";
+    else if (/assault/i.test(t)) out.caseCategory = "Assault";
+    else if (/burglary|break-in/i.test(t)) out.caseCategory = "Burglary";
+    else if (/domestic/i.test(t)) out.caseCategory = "Domestic Violence";
+    else if (/theft/i.test(t)) out.caseCategory = "Motor Vehicle Theft";
+  }
 
-const MODE_ORDER: ModeKey[] = ["contractor", "landlord", "hotel", "transport", "kitchen"];
-
-/* ============== SHARED STATE ============== */
-type Extracted = {
-  name?: string;
-  classification?: string;
-  urgency?: string;
-  location?: string;
-  transcript: string;
-};
-
-async function svgToPng(svgText: string, w: number, h: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const blob = new Blob([svgText], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) { URL.revokeObjectURL(url); return reject(new Error("no ctx")); }
-      ctx.fillStyle = "#0b1220";
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL("image/png"));
-    };
-    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-    img.src = url;
-  });
-}
-
-function useReveal(dep: unknown) {
-  useEffect(() => {
-    const els = document.querySelectorAll<HTMLElement>(".reveal, .reveal-up");
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            e.target.classList.add("in");
-            io.unobserve(e.target);
-          }
-        }
-      },
-      { threshold: 0.15 },
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [dep]);
-}
-
-/* ============== ROOT ============== */
-function Index() {
-  const [modeKey, setModeKey] = useState<ModeKey>("contractor");
-  const mode = MODES[modeKey];
-
-  useReveal(modeKey);
-
-  const [auto, setAuto] = useState(false);
-  const [extracted, setExtracted] = useState<Extracted>({ transcript: "" });
-  const [pins, setPins] = useState<{ x: number; y: number; label: string }[]>([]);
-  const [thumbnails, setThumbnails] = useState<{ id: string; label: string; src: string }[]>([]);
-  const [signatureData, setSignatureData] = useState<string | null>(null);
-  const [voicePrintHash, setVoicePrintHash] = useState<string | null>(null);
-
-  // Reset capture state on mode switch
-  useEffect(() => {
-    setAuto(false);
-    setExtracted({ transcript: "" });
-    setPins([]);
-    setThumbnails([]);
-    setSignatureData(null);
-    setVoicePrintHash(null);
-  }, [modeKey]);
-
-  // Drive the simulated extraction when "auto" is on
-  useEffect(() => {
-    if (!auto) {
-      setExtracted({ transcript: "" });
-      return;
+  if (dep.key === "fire") {
+    if (/residential|apartment|house|home/i.test(t)) out.structure = "Residential";
+    else if (/commercial|office|shop|warehouse/i.test(t)) out.structure = "Commercial";
+    else if (/industrial|factory|plant/i.test(t)) out.structure = "Industrial";
+    else if (/vehicle|car fire/i.test(t)) out.structure = "Vehicle";
+    if (/hazmat|chemical|gas main|toxic|flammable/i.test(t)) out.hazmat = /critical|explosive/i.test(t) ? "Critical" : /high|toxic/i.test(t) ? "High" : "Moderate";
+    const hydrant = t.match(/hydrant[^.,]*?(\d+)\s*(?:m|metres|meters)[^.,]*/i);
+    if (hydrant) out.waterSource = `Hydrant ${hydrant[1]}m`;
+    const trapped = t.match(/(\d+|two|three|four|five)\s+(?:occupants?|persons?|people)\s+(?:reported\s+)?trapped/i);
+    if (trapped) {
+      const map: Record<string, string> = { two: "2", three: "3", four: "4", five: "5" };
+      out.entrapped = map[trapped[1].toLowerCase()] || trapped[1];
     }
-    let i = 0;
-    const stepMs = 45;
-    const full = mode.transcript;
-    const interval = setInterval(() => {
-      i += 1;
-      setExtracted((prev) => {
-        const next: Extracted = { ...prev, transcript: full.slice(0, i) };
-        (Object.keys(mode.extraction) as ChecklistKey[]).forEach((k) => {
-          const step = mode.extraction[k];
-          if (i >= step.at && !next[k]) next[k] = step.value;
-        });
-        return next;
-      });
-      if (i >= full.length) clearInterval(interval);
-    }, stepMs);
-    return () => clearInterval(interval);
-  }, [auto, mode]);
+    if (/utility isolation|gas isolation|shut off/i.test(t)) out.utilities = "Yes";
+  }
 
-  return (
-    <main className="min-h-screen overflow-x-hidden">
-      <ScrollBanner />
-      <Nav />
-      <ModeSelector active={modeKey} onChange={setModeKey} />
-      <Hero mode={mode} auto={auto} setAuto={setAuto} transcript={extracted.transcript} />
+  if (dep.key === "health") {
+    const age = t.match(/(\d{1,3})[-\s]?year[-\s]?old|(\d{1,3})\s*yo\b/i);
+    if (age) out.patientAge = age[1] || age[2];
+    if (/\bmale\b/i.test(lower) && !/female/i.test(lower.slice(0, lower.indexOf(" male")))) out.patientGender = "Male";
+    if (/\bfemale\b/i.test(lower)) out.patientGender = "Female";
+    if (/unresponsive/i.test(t)) out.consciousness = "Unresponsive";
+    else if (/pain[-\s]?responsive/i.test(t)) out.consciousness = "Pain-responsive";
+    else if (/voice[-\s]?responsive/i.test(t)) out.consciousness = "Voice-responsive";
+    else if (/alert/i.test(t)) out.consciousness = "Alert";
+    const symMatch = t.match(/complaining of ([^.]+?)(?:\.|,\s*known)/i);
+    if (symMatch) out.symptoms = symMatch[1].trim();
+    const histMatch = t.match(/history of ([^.]+?)(?:\.|,)/i);
+    if (histMatch) out.history = histMatch[1].trim();
+    if (/triage red|red triage|critical/i.test(t)) out.triage = "Red (Critical)";
+    else if (/triage orange|urgent/i.test(t)) out.triage = "Orange (Urgent)";
+    else if (/triage green|stable/i.test(t)) out.triage = "Green (Stable)";
+  }
 
-      {/* Split workspace: left = capture controls, right = live document */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          <div className="space-y-6 min-w-0 workspace-col">
-            <Checklist mode={mode} auto={auto} setAuto={setAuto} extracted={extracted} />
-            <Evidence
-              mode={mode}
-              pins={pins}
-              setPins={setPins}
-              thumbnails={thumbnails}
-              setThumbnails={setThumbnails}
-            />
-            <Signature
-              mode={mode}
-              onSignature={setSignatureData}
-              onVoicePrint={setVoicePrintHash}
-            />
-          </div>
-          <div className="lg:sticky lg:top-32 min-w-0 workspace-col">
-            <JobCard
-              mode={mode}
-              extracted={extracted}
-              pins={pins}
-              signatureData={signatureData}
-              voicePrintHash={voicePrintHash}
-              thumbnails={thumbnails}
-            />
-          </div>
-        </div>
-      </div>
-      <Footer />
-    </main>
-  );
+  return out;
 }
 
-
-/* ============== SCROLL BANNER ============== */
-function ScrollBanner() {
-  const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.sessionStorage.getItem("ava.banner.dismissed") === "1";
-  });
-  if (dismissed) return null;
-  return (
-    <div className="fixed top-36 md:top-36 left-3 right-3 md:left-1/2 md:right-auto md:-translate-x-1/2 md:max-w-3xl z-40">
-      <div className="glass rounded-2xl border border-primary/30 px-4 py-3 flex items-start gap-3 shadow-[0_8px_40px_-8px_rgba(16,185,129,0.35)] backdrop-blur-xl">
-        <span className="text-lg leading-none mt-0.5" aria-hidden>👉</span>
-        <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed flex-1">
-          Looking for your generated document? Scroll to the bottom of the page (or jump to the{" "}
-          <a href="#document" className="text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary transition">
-            Document
-          </a>{" "}
-          section) to preview, sign, and export the live PDF.
-        </p>
-        <button
-          onClick={() => {
-            try { window.sessionStorage.setItem("ava.banner.dismissed", "1"); } catch {}
-            setDismissed(true);
-          }}
-          className="text-muted-foreground hover:text-foreground transition p-1 -m-1"
-          aria-label="Dismiss notice"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
+/* ---------- Main component ---------- */
+function DispatchPortal() {
+  const { department } = useDepartment();
+  if (!department) return null; // guarded by AuthGate
+  return <DispatchWorkspace dep={department} />;
 }
 
-/* ============== NAV ============== */
-function Nav() {
-  return (
-    <header className="fixed top-0 left-0 right-0 z-50">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="relative h-8 w-8 rounded-lg glass grid place-items-center shrink-0">
-            <div className="h-2 w-2 rounded-full bg-primary glow-emerald" />
-          </div>
-          <span className="font-display font-bold tracking-tight truncate">
-            Zero-Form <span className="text-primary">AVA</span>
-          </span>
-        </div>
-        <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
-          <a href="#capture" className="hover:text-foreground transition">Capture</a>
-          <a href="#checklist" className="hover:text-foreground transition">Checklist</a>
-          <a href="#evidence" className="hover:text-foreground transition">Evidence</a>
-          <a href="#consent" className="hover:text-foreground transition">Consent</a>
-          <a href="#document" className="hover:text-foreground transition">Document</a>
-        </nav>
-        <button className="text-xs font-medium px-4 py-2 rounded-full glass hover:bg-white/5 transition shrink-0">
-          Request demo <ArrowRight className="inline h-3 w-3 ml-1" />
-        </button>
-      </div>
-    </header>
-  );
-}
+function DispatchWorkspace({ dep }: { dep: DepartmentConfig }) {
+  const accent = dep.theme.accentHex;
+  const Icon = dep.icon;
 
-/* ============== MODE SELECTOR ============== */
-function ModeSelector({ active, onChange }: { active: ModeKey; onChange: (m: ModeKey) => void }) {
-  return (
-    <div className="fixed top-20 left-0 right-0 z-40 flex justify-center px-3 pointer-events-none">
-      <div className="pointer-events-auto glass rounded-full p-1.5 flex items-center gap-1 max-w-full overflow-x-auto no-scrollbar shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)]">
-        {MODE_ORDER.map((k) => {
-          const m = MODES[k];
-          const Icon = m.icon;
-          const isActive = active === k;
-          return (
-            <button
-              key={k}
-              onClick={() => onChange(k)}
-              aria-pressed={isActive}
-              className={`relative shrink-0 inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-[13px] font-medium transition-all duration-300 ${
-                isActive
-                  ? "text-primary-foreground bg-primary glow-emerald scale-[1.02]"
-                  : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              <span className="whitespace-nowrap">{m.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+  const [recording, setRecording] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [extracted, setExtracted] = useState<Extracted>({});
+  const [manual, setManual] = useState<Extracted>({});
+  const [simulating, setSimulating] = useState(false);
+  const [exportState, setExportState] = useState<"idle" | "generating" | "done">("idle");
 
-/* ============== HERO (compact) ============== */
-function Hero({
-  mode, auto, setAuto, transcript,
-}: { mode: ModeConfig; auto: boolean; setAuto: (v: boolean) => void; transcript: string }) {
-  const [localListening, setLocalListening] = useState(false);
-  const active = auto || localListening;
-  const bars = useMemo(() => Array.from({ length: 40 }, (_, i) => i), []);
-  const displayed = auto ? transcript : "";
-
-  return (
-    <section id="capture" className="relative pt-36 pb-8 md:pt-40 md:pb-10 grid-bg">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 relative">
-        <div className="text-center max-w-3xl mx-auto">
-          <div key={mode.key + "-badge"} className="reveal-up inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
-            <Sparkles className="h-3 w-3 text-primary" /> {mode.heroBadge}
-          </div>
-          <p className="reveal-up text-sm md:text-base text-foreground/80 leading-relaxed">
-            <span className="text-primary font-medium">Ambient Voice Intake</span> — Transform real-time speech into structured records.
-          </p>
-        </div>
-
-        {/* Compact control deck */}
-        <div className="mt-8 flex flex-col items-center">
-          <button
-            onClick={() => { setLocalListening((v) => !v); if (!localListening) setAuto(true); else setAuto(false); }}
-            aria-label="Toggle voice capture"
-            className="group relative h-20 w-20 rounded-full outline-none focus-visible:ring-4 focus-visible:ring-primary/40"
-          >
-            {active && (
-              <>
-                <span className="absolute inset-0 rounded-full border border-primary/40 animate-ring-pulse" />
-                <span className="absolute inset-0 rounded-full border border-secondary/30 animate-ring-pulse" style={{ animationDelay: "0.5s" }} />
-                <span className="absolute -inset-4 rounded-full opacity-60 blur-xl pointer-events-none"
-                  style={{ background: "radial-gradient(circle, color-mix(in oklab, var(--color-primary) 55%, transparent), transparent 70%)" }} />
-              </>
-            )}
-            <div
-              className={`relative h-full w-full rounded-full glass grid place-items-center overflow-hidden transition-transform duration-300 group-hover:scale-105 ${
-                active ? "glow-emerald animate-orb-listen" : "glow-emerald"
-              }`}
-            >
-              <div
-                className="absolute inset-1 rounded-full opacity-90"
-                style={{
-                  background:
-                    "conic-gradient(from 180deg at 50% 50%, color-mix(in oklab, var(--color-primary) 50%, transparent), color-mix(in oklab, var(--color-secondary) 40%, transparent), color-mix(in oklab, var(--color-primary) 50%, transparent))",
-                  filter: "blur(10px)",
-                }}
-              />
-              <div className="absolute inset-2 rounded-full bg-background/40 backdrop-blur-xl border border-white/15" />
-              <Mic className={`relative h-6 w-6 ${active ? "text-primary" : "text-foreground/80"}`} />
-            </div>
-          </button>
-
-          <div className="mt-3 text-xs">
-            {active ? (
-              <span className="inline-flex items-center gap-2 text-primary">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                Listening · streaming to AVA
-              </span>
-            ) : (
-              <span className="text-muted-foreground">Tap to start {mode.label.toLowerCase()} intake</span>
-            )}
-          </div>
-
-          {/* Compact waveform */}
-          <div className="mt-3 w-full max-w-md">
-            <div className="flex items-center justify-center gap-[2px] h-8">
-              {bars.map((i) => (
-                <span
-                  key={i}
-                  className="w-[3px] rounded-full"
-                  style={{
-                    height: active ? `${25 + Math.abs(Math.sin(i * 0.7)) * 70}%` : "20%",
-                    background: "linear-gradient(180deg, var(--color-secondary), var(--color-primary))",
-                    animation: active
-                      ? `waveform ${0.5 + (i % 9) * 0.07}s ease-in-out ${i * 0.025}s infinite`
-                      : "none",
-                    opacity: active ? 1 : 0.35,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Live transcript preview */}
-          <div className="mt-4 w-full max-w-2xl glass rounded-xl px-4 py-2.5 text-xs leading-relaxed min-h-[3rem]">
-            {displayed ? (
-              <span className="text-foreground/90">
-                {displayed}
-                <span className="inline-block w-1 h-3 align-[-1px] ml-1 bg-primary animate-pulse" />
-              </span>
-            ) : (
-              <span className="text-muted-foreground italic">Live transcript will appear here…</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-
-/* ============== CONFIDENCE CHECKLIST ============== */
-function Checklist({
-  mode, auto, setAuto, extracted,
-}: { mode: ModeConfig; auto: boolean; setAuto: (v: boolean) => void; extracted: Extracted }) {
-  const order: ChecklistKey[] = ["name", "classification", "urgency", "location"];
-
-  return (
-    <section id="checklist" className="py-24 md:py-32 relative">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-end gap-6 mb-12">
-          <div className="max-w-2xl min-w-0">
-            <p className="reveal-up text-xs uppercase tracking-[0.25em] text-primary mb-3">Live confidence · {mode.label}</p>
-            <h2 className="reveal-up text-3xl md:text-5xl font-display font-bold leading-tight">
-              Parameters fill themselves<br/>as you speak.
-            </h2>
-            <p className="reveal-up mt-4 text-muted-foreground">
-              AVA extracts entities in real time and lights each tile up as confidence rises.
-              No fields. No typing. No friction.
-            </p>
-          </div>
-
-          <div className="reveal-up flex items-center gap-3 glass rounded-full pl-4 pr-1 py-1 shrink-0">
-            <div className="flex items-center gap-2 text-xs">
-              <Zap className={`h-3.5 w-3.5 ${auto ? "text-primary" : "text-muted-foreground"}`} />
-              <span className="text-muted-foreground">Demo automation</span>
-            </div>
-            <button
-              onClick={() => setAuto(!auto)}
-              role="switch"
-              aria-checked={auto}
-              className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${
-                auto ? "bg-primary/30 glow-emerald" : "bg-white/5"
-              }`}
-            >
-              <span className={`inline-block h-6 w-6 rounded-full transition-transform ${
-                auto ? "translate-x-9 bg-primary" : "translate-x-1 bg-muted-foreground/60"
-              }`} />
-              <span className="sr-only">Toggle automation</span>
-            </button>
-            <span className={`text-xs font-medium px-2 ${auto ? "text-primary" : "text-muted-foreground"}`}>
-              {auto ? "ACTIVE" : "IDLE"}
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {order.map((key, i) => (
-            <ChecklistTile
-              key={mode.key + "-" + key}
-              index={i}
-              icon={mode.fields[key].icon}
-              label={mode.fields[key].label}
-              value={extracted[key]}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ChecklistTile({
-  icon: Icon, label, value, index,
-}: { icon: typeof User; label: string; value?: string; index: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const active = Boolean(value);
-
-  return (
-    <div
-      ref={ref}
-      className="reveal group relative rounded-2xl p-6 md:p-7 glass overflow-hidden transition-all duration-700"
-      style={{
-        transitionDelay: `${index * 120}ms`,
-        borderColor: active
-          ? "color-mix(in oklab, var(--color-primary) 60%, transparent)"
-          : "oklch(0.24 0.025 250)",
-        boxShadow: active
-          ? "0 0 0 1px color-mix(in oklab, var(--color-primary) 40%, transparent), 0 0 40px -10px color-mix(in oklab, var(--color-primary) 55%, transparent)"
-          : "none",
-      }}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={`h-10 w-10 rounded-xl grid place-items-center border transition-all duration-700 shrink-0 ${
-            active ? "bg-primary/15 border-primary/40 text-primary" : "bg-white/[0.03] border-white/10 text-muted-foreground"
-          }`}>
-            <Icon className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">{label}</div>
-            <div className={`mt-1 font-display font-semibold text-base sm:text-lg truncate transition-colors duration-700 ${
-              active ? "text-foreground" : "text-muted-foreground/60"
-            }`}>
-              {active ? value : "Awaiting voice…"}
-            </div>
-          </div>
-        </div>
-        {active ? (
-          <CheckCircle2 className="h-5 w-5 text-primary shrink-0" style={{ filter: "drop-shadow(0 0 8px var(--color-primary))" }} />
-        ) : (
-          <Circle className="h-5 w-5 text-muted-foreground/30 shrink-0" />
-        )}
-      </div>
-
-      <div className="mt-6">
-        <div className="flex items-center justify-between text-[11px] uppercase tracking-widest mb-2">
-          <span className="text-muted-foreground">Confidence</span>
-          <span className={active ? "text-primary" : "text-muted-foreground/60"}>{active ? "96%" : "—"}</span>
-        </div>
-        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-[1400ms] ease-out"
-            style={{
-              width: active ? "96%" : "0%",
-              background: "linear-gradient(90deg, var(--color-secondary), var(--color-primary))",
-              boxShadow: active ? "0 0 18px color-mix(in oklab, var(--color-primary) 60%, transparent)" : "none",
-            }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ============== EVIDENCE CAPTURE ============== */
-function Evidence({
-  mode, pins, setPins, thumbnails, setThumbnails,
-}: {
-  mode: ModeConfig;
-  pins: { x: number; y: number; label: string }[];
-  setPins: React.Dispatch<React.SetStateAction<{ x: number; y: number; label: string }[]>>;
-  thumbnails: { id: string; label: string; src: string }[];
-  setThumbnails: React.Dispatch<React.SetStateAction<{ id: string; label: string; src: string }[]>>;
-}) {
-  return (
-    <section id="evidence" className="py-24 md:py-32 relative">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="max-w-2xl mb-12">
-          <p className="reveal-up text-xs uppercase tracking-[0.25em] text-secondary mb-3">Evidence capture</p>
-          <h2 className="reveal-up text-3xl md:text-5xl font-display font-bold leading-tight">
-            See what the user sees.<br/>Scan, detect, pin.
-          </h2>
-          <p className="reveal-up mt-4 text-muted-foreground">
-            OCR an ID in seconds, drop pins on the {mode.schematic === "car" ? "vehicle chassis" : "schematic"} — every capture creates an evidence thumbnail.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <CameraFeed mode={mode} onCapture={(t) => setThumbnails((arr) => [t, ...arr].slice(0, 8))} />
-          <PinSchematic
-            mode={mode}
-            pins={pins}
-            setPins={setPins}
-            onCapture={(t) => setThumbnails((arr) => [t, ...arr].slice(0, 8))}
-          />
-        </div>
-
-        <div className="mt-8">
-          <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-3">Evidence vault</div>
-          <div className="flex flex-wrap gap-3">
-            {thumbnails.length === 0 && (
-              <div className="text-xs text-muted-foreground/60 italic">No evidence captured yet — scan or drop a pin.</div>
-            )}
-            {thumbnails.map((t) => (
-              <div key={t.id} className="reveal-up glass rounded-xl p-2 w-32 group">
-                <div className="aspect-square rounded-lg overflow-hidden bg-black/40 border border-white/10">
-                  <img src={t.src} alt={t.label} className="w-full h-full object-cover" />
-                </div>
-                <div className="mt-1.5 text-[10px] text-muted-foreground truncate px-1">{t.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function CameraFeed({ mode, onCapture }: { mode: ModeConfig; onCapture: (t: { id: string; label: string; src: string }) => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [status, setStatus] = useState<"idle" | "starting" | "live" | "denied" | "unsupported" | "error">("idle");
-  const [errorMsg, setErrorMsg] = useState<string>("");
-  const [uploadedSrc, setUploadedSrc] = useState<string | null>(null);
-  const [extracting, setExtracting] = useState(false);
-  const [extracted, setExtracted] = useState(false);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const simTimerRef = useRef<number | null>(null);
+  const transcriptScrollRef = useRef<HTMLDivElement | null>(null);
 
-  const stopStream = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-  };
-
+  // Reset all state when department changes
   useEffect(() => {
-    return () => stopStream();
-  }, []);
+    stopRecording();
+    stopSimulation();
+    setTranscript("");
+    setExtracted({});
+    setManual({});
+    setExportState("idle");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dep.key]);
 
-  const startCamera = async () => {
-    setErrorMsg("");
-    setExtracted(false);
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setStatus("unsupported");
-      setErrorMsg("Camera API is not available in this browser.");
-      return;
-    }
-    try {
-      setStatus("starting");
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
-      }
-      setStatus("live");
-    } catch (err: unknown) {
-      const name = (err as { name?: string })?.name || "";
-      if (name === "NotAllowedError" || name === "SecurityError") {
-        setStatus("denied");
-        setErrorMsg("Camera permission was denied. Upload an image instead.");
-      } else if (name === "NotFoundError" || name === "OverconstrainedError") {
-        setStatus("unsupported");
-        setErrorMsg("No camera device found. Upload an image instead.");
-      } else {
-        setStatus("error");
-        setErrorMsg((err as Error)?.message || "Camera could not be started.");
-      }
-    }
-  };
+  // Re-extract when transcript changes
+  useEffect(() => {
+    if (!transcript) return setExtracted({});
+    setExtracted(extractFromTranscript(dep, transcript));
+  }, [transcript, dep]);
 
-  const captureFrame = () => {
-    const video = videoRef.current;
-    if (!video || status !== "live") return;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+  // Auto-scroll transcript
+  useEffect(() => {
+    const el = transcriptScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [transcript]);
+
+  const merged: Extracted = useMemo(() => ({ ...extracted, ...manual }), [extracted, manual]);
+
+  function startWaveform() {
+    const canvas = canvasRef.current;
+    const analyser = analyserRef.current;
+    if (!canvas || !analyser) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const src = canvas.toDataURL("image/jpeg", 0.85);
-    setExtracting(true);
-    setTimeout(() => {
-      onCapture({ id: crypto.randomUUID(), label: `ID Capture · ${new Date().toLocaleTimeString()}`, src });
-      setExtracting(false);
-      setExtracted(true);
-    }, 900);
-  };
+    const buf = new Uint8Array(analyser.frequencyBinCount);
 
-  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const src = String(reader.result || "");
-      setUploadedSrc(src);
-      setExtracting(true);
-      setTimeout(() => {
-        onCapture({ id: crypto.randomUUID(), label: `ID Upload · ${file.name.slice(0, 24)}`, src });
-        setExtracting(false);
-        setExtracted(true);
-      }, 900);
+    const draw = () => {
+      analyser.getByteTimeDomainData(buf);
+      const { width, height } = canvas;
+      ctx.clearRect(0, 0, width, height);
+      // subtle backdrop
+      ctx.fillStyle = "rgba(15,23,42,0.35)";
+      ctx.fillRect(0, 0, width, height);
+      // Bar-style waveform
+      const bars = 48;
+      const step = Math.floor(buf.length / bars);
+      const barW = width / bars;
+      for (let i = 0; i < bars; i++) {
+        const v = buf[i * step] / 128 - 1; // -1..1
+        const h = Math.max(4, Math.abs(v) * height * 0.9);
+        const x = i * barW + barW * 0.15;
+        const y = (height - h) / 2;
+        const w = barW * 0.7;
+        ctx.fillStyle = accent;
+        ctx.shadowColor = accent;
+        ctx.shadowBlur = 12;
+        ctx.fillRect(x, y, w, h);
+      }
+      ctx.shadowBlur = 0;
+      rafRef.current = requestAnimationFrame(draw);
     };
-    reader.readAsDataURL(file);
-  };
+    draw();
+  }
 
-  const fallback = status === "denied" || status === "unsupported" || status === "error";
+  async function startRecording() {
+    stopSimulation();
+    setTranscript("");
+    setExtracted({});
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const audioCtx = new AC();
+      audioCtxRef.current = audioCtx;
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      setRecording(true);
+      requestAnimationFrame(startWaveform);
+    } catch {
+      // Fallback: just enable simulated waveform-like animation would be nice, but we'll surface a hint
+      setRecording(true);
+      setTranscript("[Microphone unavailable — click 'Simulate Department Call' to preview the flow.]");
+    }
+  }
 
-  return (
-    <div className="reveal relative rounded-2xl glass p-5 overflow-hidden">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-          <Camera className="h-4 w-4 text-secondary" /> Camera feed · OCR
-        </div>
-        <span className={`text-[10px] inline-flex items-center gap-1.5 ${status === "live" ? "text-primary" : "text-muted-foreground"}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${status === "live" ? "bg-primary animate-pulse" : "bg-muted-foreground/60"}`} />
-          {status === "live" ? "LIVE" : status === "starting" ? "STARTING" : fallback ? "FALLBACK" : "IDLE"}
-        </span>
-      </div>
-
-      <div className="relative aspect-[4/3] rounded-xl overflow-hidden border border-white/10 bg-black/60">
-        {/* Live video */}
-        <video
-          ref={videoRef}
-          playsInline
-          muted
-          className={`absolute inset-0 h-full w-full object-cover ${status === "live" ? "opacity-100" : "opacity-0"}`}
-        />
-
-        {/* Idle / starting state */}
-        {status !== "live" && !fallback && !uploadedSrc && (
-          <div className="absolute inset-0 grid place-items-center text-center px-6"
-            style={{
-              background:
-                "radial-gradient(120% 80% at 30% 20%, color-mix(in oklab, var(--color-secondary) 18%, transparent), transparent 55%), linear-gradient(135deg, oklch(0.22 0.03 255), oklch(0.16 0.02 250))",
-            }}
-          >
-            <div>
-              <Camera className="h-8 w-8 text-secondary mx-auto mb-3 opacity-70" />
-              <div className="text-xs text-muted-foreground max-w-[220px] mx-auto">
-                {status === "starting" ? "Requesting camera access…" : "Grant camera access to scan an ID or license"}
-              </div>
-              <button
-                onClick={startCamera}
-                disabled={status === "starting"}
-                className="mt-4 text-xs font-medium px-4 py-2 rounded-full glass hover:bg-primary/10 text-primary transition disabled:opacity-60"
-              >
-                {status === "starting" ? "Requesting…" : "Enable camera"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Fallback file upload */}
-        {fallback && (
-          <div className="absolute inset-0 grid place-items-center text-center p-6"
-            style={{ background: "linear-gradient(135deg, oklch(0.22 0.03 255), oklch(0.14 0.02 250))" }}
-          >
-            {uploadedSrc ? (
-              <img src={uploadedSrc} alt="Uploaded ID" className="absolute inset-0 h-full w-full object-cover" />
-            ) : (
-              <div>
-                <ImagePlus className="h-8 w-8 text-secondary mx-auto mb-3 opacity-70" />
-                <div className="text-xs text-muted-foreground max-w-[240px] mx-auto">
-                  {errorMsg || "Upload an ID image to run mock OCR extraction."}
-                </div>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="mt-4 text-xs font-medium px-4 py-2 rounded-full glass hover:bg-primary/10 text-primary transition"
-                >
-                  Upload ID image
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={onFile}
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Scan overlay when live */}
-        {status === "live" && (
-          <>
-            <div className="absolute left-[8%] right-[8%] top-[10%] bottom-[10%] rounded-lg pointer-events-none"
-              style={{
-                border: "2px solid var(--color-primary)",
-                boxShadow: "0 0 24px color-mix(in oklab, var(--color-primary) 70%, transparent), inset 0 0 18px color-mix(in oklab, var(--color-primary) 40%, transparent)",
-                animation: "orb-pulse 2.4s ease-in-out infinite",
-              }}
-            />
-            <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent animate-scan-line"
-                 style={{ boxShadow: "0 0 24px var(--color-primary)" }} />
-            {[
-              "top-3 left-3 border-l-2 border-t-2",
-              "top-3 right-3 border-r-2 border-t-2",
-              "bottom-3 left-3 border-l-2 border-b-2",
-              "bottom-3 right-3 border-r-2 border-b-2",
-            ].map((c) => (
-              <span key={c} className={`absolute h-6 w-6 border-primary ${c}`} />
-            ))}
-          </>
-        )}
-
-        {(extracting || extracted) && (
-          <div className="absolute bottom-3 left-3 right-3 rounded-lg glass px-3 py-2 text-[11px] flex items-center gap-2">
-            <span className={`h-1.5 w-1.5 rounded-full ${extracting ? "bg-secondary animate-pulse" : "bg-primary"}`} />
-            <span className={extracting ? "text-muted-foreground" : "text-primary"}>
-              {extracting ? "Running OCR extraction…" : "Extraction complete — fields populated"}
-            </span>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
-        {mode.idFields.map((f) => (
-          <Field key={f.label} label={f.label} value={f.value} />
-        ))}
-      </div>
-
-      <div className="mt-4 flex gap-2">
-        {status === "live" ? (
-          <>
-            <button
-              onClick={captureFrame}
-              className="flex-1 text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-primary/10 transition inline-flex items-center justify-center gap-2 text-primary"
-            >
-              <ImagePlus className="h-4 w-4" /> Capture frame
-            </button>
-            <button
-              onClick={() => { stopStream(); setStatus("idle"); }}
-              className="text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-white/5 transition"
-            >
-              Stop
-            </button>
-          </>
-        ) : fallback ? (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex-1 text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-primary/10 transition inline-flex items-center justify-center gap-2 text-primary"
-          >
-            <ImagePlus className="h-4 w-4" /> {uploadedSrc ? "Upload another" : "Upload ID image"}
-          </button>
-        ) : (
-          <button
-            onClick={startCamera}
-            disabled={status === "starting"}
-            className="flex-1 text-xs font-medium px-4 py-2.5 rounded-xl glass hover:bg-primary/10 transition inline-flex items-center justify-center gap-2 text-primary disabled:opacity-60"
-          >
-            <Camera className="h-4 w-4" /> {status === "starting" ? "Requesting…" : "Enable camera"}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
-      <div className="font-display text-sm text-foreground mt-0.5 truncate">{value}</div>
-    </div>
-  );
-}
-
-function PinSchematic({
-  mode, pins, setPins, onCapture,
-}: {
-  mode: ModeConfig;
-  pins: { x: number; y: number; label: string }[];
-  setPins: React.Dispatch<React.SetStateAction<{ x: number; y: number; label: string }[]>>;
-  onCapture: (t: { id: string; label: string; src: string }) => void;
-}) {
-  const boxRef = useRef<HTMLDivElement>(null);
-
-  const drop = (e: React.MouseEvent<HTMLDivElement>) => {
-    const r = boxRef.current!.getBoundingClientRect();
-    const x = ((e.clientX - r.left) / r.width) * 100;
-    const y = ((e.clientY - r.top) / r.height) * 100;
-    const label = `${mode.schematic === "car" ? "Damage zone" : "Damage point"} ${pins.length + 1}`;
-    setPins((p) => [...p, { x, y, label }]);
-
-    const pinSvg = [...pins, { x, y, label }]
-      .map((p) => `<circle cx='${p.x.toFixed(1)}%' cy='${p.y.toFixed(1)}%' r='4' fill='%23ef4444'/>`)
-      .join("");
-
-    const carPath =
-      "<path d='M20 95 Q22 75 38 70 L60 50 Q100 38 140 50 L162 70 Q178 75 180 95 L180 110 Q178 118 168 118 L155 118 Q150 108 140 108 Q130 108 125 118 L75 118 Q70 108 60 108 Q50 108 45 118 L32 118 Q22 118 20 110 Z' fill='none' stroke='%2306b6d4' stroke-width='1.5'/>" +
-      "<circle cx='55' cy='115' r='10' fill='none' stroke='%2306b6d4' stroke-width='1.2'/>" +
-      "<circle cx='145' cy='115' r='10' fill='none' stroke='%2306b6d4' stroke-width='1.2'/>" +
-      "<path d='M70 55 L130 55 L138 70 L62 70 Z' fill='none' stroke='%2306b6d4' stroke-width='0.8' opacity='0.7'/>";
-    const housePath =
-      "<path d='M30 110 L100 50 L170 110 Z' fill='none' stroke='%2306b6d4' stroke-width='1.5'/>" +
-      "<rect x='40' y='110' width='120' height='30' fill='none' stroke='%2306b6d4' stroke-width='1.5'/>";
-
-    const svg = `
-      <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 150'>
-        <rect width='200' height='150' fill='%230b1220'/>
-        ${mode.schematic === "car" ? carPath : housePath}
-        ${pinSvg}
-      </svg>`.replace(/\n/g, "");
-    onCapture({
-      id: crypto.randomUUID(),
-      label: `Pin map · ${pins.length + 1} marker${pins.length ? "s" : ""}`,
-      src: `data:image/svg+xml;utf8,${svg}`,
-    });
-  };
-
-  const removePin = (idx: number) => (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPins((p) => p.filter((_, i) => i !== idx));
-  };
-
-  return (
-    <div className="reveal relative rounded-2xl glass p-5 overflow-hidden">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-          <Pin className="h-4 w-4 text-destructive" />
-          {mode.schematic === "car" ? "Vehicle chassis · tap to mark" : "Damage pins · tap to mark"}
-        </div>
-        <button
-          onClick={() => setPins([])}
-          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
-        >
-          <Eraser className="h-3.5 w-3.5" /> Clear
-        </button>
-      </div>
-
-      <div
-        ref={boxRef}
-        onClick={drop}
-        className="relative aspect-[4/3] rounded-xl overflow-hidden border border-white/10 cursor-crosshair select-none"
-        style={{
-          background:
-            "radial-gradient(80% 60% at 70% 30%, color-mix(in oklab, var(--color-primary) 12%, transparent), transparent 60%), linear-gradient(160deg, oklch(0.24 0.03 250), oklch(0.14 0.02 250))",
-        }}
-      >
-        <svg viewBox="0 0 200 150" className="absolute inset-0 w-full h-full opacity-70" preserveAspectRatio="none">
-          <defs>
-            <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="0.5"/>
-            </pattern>
-          </defs>
-          <rect width="200" height="150" fill="url(#grid)"/>
-          {mode.schematic === "car" ? (
-            <g className="text-secondary">
-              <path
-                d="M20 95 Q22 75 38 70 L60 50 Q100 38 140 50 L162 70 Q178 75 180 95 L180 110 Q178 118 168 118 L155 118 Q150 108 140 108 Q130 108 125 118 L75 118 Q70 108 60 108 Q50 108 45 118 L32 118 Q22 118 20 110 Z"
-                fill="none" stroke="currentColor" strokeWidth="1.2"
-              />
-              <path d="M70 55 L130 55 L138 70 L62 70 Z" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.7" />
-              <line x1="100" y1="55" x2="100" y2="70" stroke="currentColor" strokeWidth="0.6" opacity="0.6" />
-              <circle cx="55" cy="115" r="10" fill="none" stroke="currentColor" strokeWidth="1" />
-              <circle cx="145" cy="115" r="10" fill="none" stroke="currentColor" strokeWidth="1" />
-              <circle cx="55" cy="115" r="4" fill="none" stroke="currentColor" strokeWidth="0.6" opacity="0.6" />
-              <circle cx="145" cy="115" r="4" fill="none" stroke="currentColor" strokeWidth="0.6" opacity="0.6" />
-              <rect x="22" y="86" width="6" height="4" fill="currentColor" opacity="0.6" />
-              <rect x="172" y="86" width="6" height="4" fill="currentColor" opacity="0.6" />
-            </g>
-          ) : (
-            <g className="text-secondary">
-              <path d="M30 110 L100 35 L170 110" fill="none" stroke="currentColor" strokeWidth="1" />
-              <rect x="40" y="110" width="120" height="32" fill="none" stroke="currentColor" strokeWidth="1" />
-              <rect x="55" y="120" width="20" height="22" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.7" />
-              <rect x="90" y="120" width="22" height="14" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.7" />
-              <rect x="130" y="120" width="20" height="14" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.7" />
-            </g>
-          )}
-        </svg>
-
-        {pins.map((p, i) => (
-          <button
-            key={i}
-            onClick={removePin(i)}
-            className="absolute -translate-x-1/2 -translate-y-1/2 group/pin"
-            style={{ left: `${p.x}%`, top: `${p.y}%` }}
-            aria-label={`Remove ${p.label}`}
-          >
-            <span className="absolute inset-0 rounded-full bg-destructive/40 animate-ring-pulse" />
-            <span className="relative block h-4 w-4 rounded-full bg-destructive border border-white/80"
-                  style={{ boxShadow: "0 0 18px var(--color-destructive)" }} />
-            <span className="absolute left-1/2 -translate-x-1/2 mt-1 px-2 py-0.5 rounded-md glass text-[10px] whitespace-nowrap opacity-0 group-hover/pin:opacity-100 transition">
-              {p.label} <X className="inline h-2.5 w-2.5 ml-1" />
-            </span>
-          </button>
-        ))}
-
-        {pins.length === 0 && (
-          <div className="absolute inset-0 grid place-items-center text-xs text-muted-foreground/70 tracking-widest uppercase pointer-events-none text-center px-6">
-            {mode.schematicHint}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {pins.map((p, i) => (
-          <span key={i} className="text-[11px] px-2.5 py-1 rounded-full glass text-foreground/80">
-            <span className="text-destructive mr-1.5">●</span>{p.label}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ============== SIGNATURE + CONSENT ============== */
-function Signature({
-  mode, onSignature, onVoicePrint,
-}: {
-  mode: ModeConfig;
-  onSignature: (dataUrl: string | null) => void;
-  onVoicePrint: (hash: string | null) => void;
-}) {
-  return (
-    <section id="consent" className="py-24 md:py-32 relative">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="max-w-2xl mb-12">
-          <p className="reveal-up text-xs uppercase tracking-[0.25em] text-primary mb-3">{mode.consentTitle}</p>
-          <h2 className="reveal-up text-3xl md:text-5xl font-display font-bold leading-tight">
-            Sign with a stroke.<br/>Confirm with your voice.
-          </h2>
-          <p className="reveal-up mt-4 text-muted-foreground">
-            Tamper-evident submission combining cryptographic signature and biometric voice consent.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <SignaturePad onChange={onSignature} />
-          <VoiceConsent prompt={mode.consentPrompt} onHash={onVoicePrint} />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false);
-  const lastPt = useRef<{ x: number; y: number } | null>(null);
-  const [hasSig, setHasSig] = useState(false);
-
-  useEffect(() => {
+  function stopRecording() {
+    setRecording(false);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current = null;
+    analyserRef.current = null;
     const c = canvasRef.current;
-    if (!c) return;
-    const ratio = window.devicePixelRatio || 1;
-    const resize = () => {
-      const r = c.getBoundingClientRect();
-      c.width = r.width * ratio;
-      c.height = r.height * ratio;
-      const ctx = c.getContext("2d")!;
-      ctx.scale(ratio, ratio);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.lineWidth = 1.6;
-      ctx.strokeStyle = "rgb(16,185,129)";
-      ctx.shadowColor = "rgba(16,185,129,0.35)";
-      ctx.shadowBlur = 2;
-      (ctx as CanvasRenderingContext2D & { imageSmoothingEnabled?: boolean }).imageSmoothingEnabled = true;
-    };
-    resize();
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    if (c) c.getContext("2d")?.clearRect(0, 0, c.width, c.height);
+  }
+
+  function stopSimulation() {
+    if (simTimerRef.current) window.clearInterval(simTimerRef.current);
+    simTimerRef.current = null;
+    setSimulating(false);
+  }
+
+  function simulateCall() {
+    stopRecording();
+    setTranscript("");
+    setExtracted({});
+    setManual({});
+    setSimulating(true);
+    const full = dep.simulated.transcript;
+    let i = 0;
+    const step = 25;
+    simTimerRef.current = window.setInterval(() => {
+      i += 3;
+      const slice = full.slice(0, i);
+      setTranscript(slice);
+      if (i >= full.length) {
+        window.clearInterval(simTimerRef.current!);
+        simTimerRef.current = null;
+        setSimulating(false);
+      }
+    }, step);
+  }
+
+  useEffect(() => () => {
+    stopRecording();
+    stopSimulation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const pos = (e: React.PointerEvent) => {
-    const c = canvasRef.current!;
-    const r = c.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
-  };
+  function updateField(key: string, value: string) {
+    setManual((prev) => ({ ...prev, [key]: value }));
+  }
 
-  const down = (e: React.PointerEvent) => {
-    drawing.current = true;
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    const { x, y } = pos(e);
-    lastPt.current = { x, y };
-    const ctx = canvasRef.current!.getContext("2d")!;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    // Tiny dot so a single tap registers
-    ctx.lineTo(x + 0.01, y + 0.01);
-    ctx.stroke();
-  };
-  const move = (e: React.PointerEvent) => {
-    if (!drawing.current) return;
-    const ctx = canvasRef.current!.getContext("2d")!;
-    const { x, y } = pos(e);
-    const last = lastPt.current ?? { x, y };
-    const mid = { x: (last.x + x) / 2, y: (last.y + y) / 2 };
-    // Smooth ink: clamp pen width strictly 1.5–2.0 px
-    const pressure = (e as unknown as { pressure?: number }).pressure;
-    const dynamicWidth = Math.max(1.5, Math.min(2.0, 1.5 + (pressure && pressure > 0 ? pressure * 0.5 : 0.35)));
-    ctx.lineWidth = dynamicWidth;
-
-    ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.quadraticCurveTo(last.x, last.y, mid.x, mid.y);
-    ctx.stroke();
-    lastPt.current = { x, y };
-    if (!hasSig) setHasSig(true);
-  };
-  const up = () => {
-    if (!drawing.current) return;
-    drawing.current = false;
-    lastPt.current = null;
-    const c = canvasRef.current!;
-    onChange(c.toDataURL("image/png"));
-  };
-  const clear = () => {
-    const c = canvasRef.current!;
-    c.getContext("2d")!.clearRect(0, 0, c.width, c.height);
-    setHasSig(false);
-    onChange(null);
-  };
-
-  return (
-    <div className="reveal rounded-2xl glass p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-          <FileSignature className="h-4 w-4 text-primary" /> Digital signature
-        </div>
-        <button onClick={clear} className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5">
-          <Eraser className="h-3.5 w-3.5" /> Clear
-        </button>
-      </div>
-      <div className="relative h-56 rounded-xl border border-white/10 bg-black/30 overflow-hidden">
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full touch-none"
-          onPointerDown={down}
-          onPointerMove={move}
-          onPointerUp={up}
-          onPointerLeave={up}
-          onPointerCancel={up}
-        />
-        {!hasSig && (
-          <div className="absolute inset-0 grid place-items-center pointer-events-none">
-            <span className="text-xs text-muted-foreground/70 tracking-widest uppercase">Sign within the frame</span>
-          </div>
-        )}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-dashed border-white/15" />
-      </div>
-      <div className="mt-4 flex items-center justify-between text-xs">
-        <span className="text-muted-foreground">SHA-256 · timestamped · geotagged</span>
-        <span className={`inline-flex items-center gap-1.5 ${hasSig ? "text-primary" : "text-muted-foreground"}`}>
-          <ShieldCheck className="h-3.5 w-3.5" /> {hasSig ? "Captured" : "Awaiting"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function makeHash(prefix: string) {
-  const chars = "0123456789abcdef";
-  let s = "";
-  for (let i = 0; i < 56; i++) s += chars[Math.floor(Math.random() * 16)];
-  return `${prefix}:${s}`;
-}
-
-function VoiceConsent({ prompt, onHash }: { prompt: string; onHash: (h: string | null) => void }) {
-  const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [hash, setHash] = useState<string | null>(null);
-  const [verified, setVerified] = useState(false);
-
-  useEffect(() => {
-    if (!recording) return;
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [recording]);
-
-  const stop = () => {
-    setRecording(false);
-    if (seconds > 0) {
-      const h = makeHash("sha256");
-      setHash(h);
-      setVerified(true);
-      onHash(h);
-    }
-  };
-
-  const start = () => {
-    setSeconds(0);
-    setRecording(true);
-    setVerified(false);
-  };
-
-  const bars = 60;
-  return (
-    <div className="reveal rounded-2xl glass p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-          <Waves className="h-4 w-4 text-secondary" /> Voice consent
-        </div>
-        <span className="text-[10px] text-muted-foreground">{seconds.toString().padStart(2, "0")}s / 30s</span>
-      </div>
-
-      <div className="rounded-xl border border-white/10 bg-black/30 p-5 h-56 flex flex-col justify-between">
-        <div className="text-xs text-muted-foreground leading-relaxed">
-          Please read aloud:&nbsp;
-          <span className="text-foreground italic">"{prompt}"</span>
-        </div>
-        <div className="flex items-end justify-center gap-[3px] h-20">
-          {Array.from({ length: bars }).map((_, i) => (
-            <span
-              key={i}
-              className="w-1 rounded-full"
-              style={{
-                height: recording
-                  ? `${20 + Math.abs(Math.sin(i * 0.7)) * 70}%`
-                  : verified
-                    ? `${30 + Math.abs(Math.sin(i * 0.5)) * 50}%`
-                    : "12%",
-                background: "linear-gradient(180deg, var(--color-secondary), var(--color-primary))",
-                animation: recording ? `waveform ${0.6 + (i % 7) * 0.08}s ease-in-out ${i * 0.03}s infinite` : "none",
-                opacity: recording ? 1 : verified ? 0.7 : 0.3,
-                boxShadow: recording ? "0 0 8px color-mix(in oklab, var(--color-primary) 60%, transparent)" : "none",
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <button
-          onClick={recording ? stop : start}
-          className={`text-xs font-medium px-4 py-2 rounded-full transition glass ${recording ? "glow-emerald text-primary" : "hover:bg-white/5"}`}
-        >
-          {recording ? "Stop & verify" : verified ? "Re-record" : "Record voice consent"}
-        </button>
-        <span className={`text-xs inline-flex items-center gap-1.5 ${verified ? "text-primary" : recording ? "text-primary" : "text-muted-foreground"}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${recording ? "bg-primary animate-pulse" : verified ? "bg-primary" : "bg-muted-foreground/50"}`} />
-          {recording ? "Capturing biometric" : verified ? "Voiceprint verified" : "Idle"}
-        </span>
-      </div>
-
-      {hash && (
-        <div className="mt-3 rounded-lg bg-primary/5 border border-primary/30 px-3 py-2.5 text-[11px] font-mono break-all leading-relaxed">
-          <span className="text-primary">SHA-256 voiceprint:</span>{" "}
-          <span className="text-foreground/80">{hash.slice(7, 39)}…{hash.slice(-12)}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ============== JOB CARD ============== */
-function JobCard({
-  mode, extracted, pins, signatureData, voicePrintHash, thumbnails,
-}: {
-  mode: ModeConfig;
-  extracted: Extracted;
-  pins: { x: number; y: number; label: string }[];
-  signatureData: string | null;
-  voicePrintHash: string | null;
-  thumbnails: { id: string; label: string; src: string }[];
-}) {
-  const [exporting, setExporting] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [done, setDone] = useState(false);
-  const [dispatch, setDispatch] = useState<null | "sending" | "sent">(null);
-  const OFFICE_EMAIL = "ntuli.mveli@gmail.com";
-
-
-  const exportPdf = async () => {
-    setDone(false);
-    setExporting(true);
-    setProgress(5);
-
-    // Animate progress optimistically
-    const tick = setInterval(() => {
-      setProgress((p) => (p < 85 ? p + Math.random() * 6 + 2 : p));
-    }, 140);
-
+  async function exportPdf() {
+    setExportState("generating");
     try {
-      const { jsPDF } = await import("jspdf");
+      await new Promise((r) => setTimeout(r, 400));
       const doc = new jsPDF({ unit: "pt", format: "a4" });
       const pageW = doc.internal.pageSize.getWidth();
       const marginX = 48;
       let y = 56;
 
-      // Header
-      doc.setFillColor(9, 13, 22);
-      doc.rect(0, 0, pageW, 90, "F");
-      doc.setTextColor(16, 185, 129);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.text(mode.docTitle.toUpperCase(), marginX, 46);
+      // Header band
+      const [r, g, b] = hexToRgb(accent);
+      doc.setFillColor(r, g, b);
+      doc.rect(0, 0, pageW, 8, "F");
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 8, pageW, 72, "F");
+
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(20);
-      doc.text(mode.docNumber, marginX, 72);
-      doc.setTextColor(200, 210, 220);
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
+      doc.text(dep.agency.toUpperCase(), marginX, 34);
+      doc.setFontSize(18);
+      doc.text(dep.docTitle, marginX, 58);
       doc.setFont("helvetica", "normal");
-      const status = extracted.urgency ? mode.docFooter : "Pending capture";
-      doc.text(status.toUpperCase(), pageW - marginX, 46, { align: "right" });
       doc.setFontSize(9);
-      doc.text("Generated " + new Date().toLocaleString(), pageW - marginX, 72, { align: "right" });
+      const docNo = `${dep.docPrefix}-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 90000) + 10000)}`;
+      doc.text(`Docket No. ${docNo}`, pageW - marginX, 34, { align: "right" });
+      doc.text(new Date().toLocaleString(), pageW - marginX, 58, { align: "right" });
 
-      y = 130;
-      doc.setTextColor(30, 41, 59);
-
-      // Row helper
-      const row = (label: string, value: string) => {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(120, 130, 145);
-        doc.text(label.toUpperCase(), marginX, y);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.setTextColor(20, 25, 40);
-        doc.text(String(value || "—"), marginX, y + 14);
-        y += 34;
-      };
-      const twoCol = (l1: string, v1: string, l2: string, v2: string) => {
-        const midX = pageW / 2;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(120, 130, 145);
-        doc.text(l1.toUpperCase(), marginX, y);
-        doc.text(l2.toUpperCase(), midX, y);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.setTextColor(20, 25, 40);
-        doc.text(String(v1 || "—"), marginX, y + 14, { maxWidth: (pageW / 2) - marginX - 12 });
-        doc.text(String(v2 || "—"), midX, y + 14, { maxWidth: (pageW / 2) - marginX - 12 });
-        y += 36;
-      };
-
-      twoCol(mode.fields.name.label, extracted.name ?? "—", mode.docContactLabel, mode.docContactValue);
-      twoCol(mode.fields.location.label, extracted.location ?? "—", mode.fields.urgency.label, extracted.urgency ?? "—");
-      row(mode.fields.classification.label, extracted.classification ?? "—");
-
-      // Divider
-      doc.setDrawColor(220, 226, 235);
-      doc.line(marginX, y, pageW - marginX, y);
-      y += 24;
-
-      // Transcript
-      doc.setFontSize(8);
-      doc.setTextColor(120, 130, 145);
-      doc.setFont("helvetica", "normal");
-      doc.text("VOICE TRANSCRIPT", marginX, y);
-      y += 14;
-      doc.setFontSize(10);
-      doc.setTextColor(40, 50, 65);
-      const lines = doc.splitTextToSize(extracted.transcript || "Awaiting voice capture…", pageW - marginX * 2);
-      doc.text(lines, marginX, y);
-      y += lines.length * 13 + 18;
-
-      doc.line(marginX, y, pageW - marginX, y);
-      y += 20;
-
-      // Pins
-      doc.setFontSize(8);
-      doc.setTextColor(120, 130, 145);
-      doc.text(`${mode.schematic === "car" ? "VEHICLE DAMAGE MAP" : "DAMAGE MAP"} · ${pins.length} PIN${pins.length === 1 ? "" : "S"}`, marginX, y);
-      y += 14;
-      doc.setFontSize(10);
-      doc.setTextColor(40, 50, 65);
-      if (pins.length === 0) {
-        doc.setTextColor(150, 155, 165);
-        doc.text("No damage points pinned.", marginX, y);
-        y += 16;
-      } else {
-        for (const p of pins) {
-          doc.setFillColor(239, 68, 68);
-          doc.circle(marginX + 3, y - 3, 2.5, "F");
-          doc.setTextColor(40, 50, 65);
-          doc.text(`${p.label}  (${p.x.toFixed(0)}%, ${p.y.toFixed(0)}%)`, marginX + 14, y);
-          y += 15;
-        }
-      }
-      y += 18;
-
-      // Pin map thumbnail
-      const pinThumb = thumbnails.find((t) => t.label.startsWith("Pin map"));
-      if (pinThumb && pinThumb.src.startsWith("data:image/svg+xml")) {
-        // Convert svg data URL to PNG via canvas for jspdf
-        try {
-          const svgText = decodeURIComponent(pinThumb.src.split(",")[1]);
-          const png = await svgToPng(svgText, 400, 300);
-          doc.addImage(png, "PNG", marginX, y, 220, 165);
-          y += 180;
-        } catch { /* skip */ }
-      }
-
-      // Signature
-      if (y > 640) { doc.addPage(); y = 56; }
-      doc.setDrawColor(220, 226, 235);
-      doc.line(marginX, y, pageW - marginX, y);
-      y += 20;
-      doc.setFontSize(8);
-      doc.setTextColor(120, 130, 145);
-      doc.text("SIGNATURE", marginX, y);
-      y += 12;
-      if (signatureData) {
-        try {
-          doc.addImage(signatureData, "PNG", marginX, y, 180, 60);
-        } catch { /* ignore */ }
-      } else {
-        doc.setTextColor(150, 155, 165);
-        doc.setFontSize(10);
-        doc.text("(pending)", marginX, y + 20);
-      }
-      doc.setFontSize(9);
-      doc.setTextColor(60, 70, 90);
-      doc.text(`${extracted.name ?? "Pending"} · ${voicePrintHash ? "voiceprint verified" : "biometric pending"}`, marginX, y + 78);
-
-      doc.setFontSize(8);
-      doc.setTextColor(120, 130, 145);
-      doc.text("AUTHORISATION", pageW - marginX, y, { align: "right" });
+      y = 110;
+      doc.setTextColor(20, 20, 20);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
-      doc.setTextColor(20, 25, 40);
-      doc.text(`AVA · ${mode.label}`, pageW - marginX, y + 16, { align: "right" });
-      doc.setFont("courier", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(90, 100, 115);
-      doc.text(voicePrintHash ? `${voicePrintHash.slice(7, 27)}…` : "SHA-256 · pending", pageW - marginX, y + 32, { align: "right" });
+      doc.text("INCIDENT DETAILS", marginX, y);
+      doc.setDrawColor(r, g, b);
+      doc.setLineWidth(1.5);
+      doc.line(marginX, y + 4, marginX + 130, y + 4);
+      y += 20;
+
+      // Fields table
+      doc.setFontSize(10);
+      dep.fields.forEach((f) => {
+        const val = merged[f.key] || "—";
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(80, 80, 80);
+        doc.text(f.label + ":", marginX, y);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(15, 15, 15);
+        const wrapped = doc.splitTextToSize(val, pageW - marginX * 2 - 170);
+        doc.text(wrapped as string[], marginX + 170, y);
+        y += Math.max(16, (wrapped as string[]).length * 14);
+      });
+
+      // Transcript
+      y += 8;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(20, 20, 20);
+      doc.text("VOICE TRANSCRIPT", marginX, y);
+      doc.line(marginX, y + 4, marginX + 140, y + 4);
+      y += 20;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      const transcriptLines = doc.splitTextToSize(transcript || "(no transcript captured)", pageW - marginX * 2);
+      doc.text(transcriptLines as string[], marginX, y);
+      y += (transcriptLines as string[]).length * 13 + 12;
+
+      // Department-specific footer blocks
+      if (dep.key === "police") {
+        drawSignatureBlock(doc, marginX, y, pageW, "Arresting Officer Signature", "Case Stamp");
+      } else if (dep.key === "fire") {
+        drawChecklist(doc, marginX, y, pageW, [
+          "Building safety clearance issued",
+          "Gas / utility isolation confirmed",
+          "Water supply secured",
+          "HAZMAT team briefed",
+        ]);
+      } else {
+        drawVitalsFooter(doc, marginX, y, pageW);
+      }
 
       // Footer bar
-      doc.setFillColor(16, 185, 129);
-      doc.rect(0, doc.internal.pageSize.getHeight() - 24, pageW, 24, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.text(`Zero-Form AVA · ${mode.docFooter}`, marginX, doc.internal.pageSize.getHeight() - 8);
-      doc.text(mode.docNumber, pageW - marginX, doc.internal.pageSize.getHeight() - 8, { align: "right" });
+      doc.setFillColor(r, g, b);
+      doc.rect(0, doc.internal.pageSize.getHeight() - 6, pageW, 6, "F");
 
-      setProgress(100);
-      doc.save(`${mode.docNumber}.pdf`);
-      setDone(true);
-      // Trigger email dispatcher overlay + prefill mailto
-      setDispatch("sending");
-      setTimeout(() => {
-        setDispatch("sent");
-        const subject = encodeURIComponent(`[${mode.docTitle}] ${mode.docNumber} — ${extracted.name ?? "AVA capture"}`);
-        const bodyLines = [
-          `Central Office,`,
-          ``,
-          `Please find attached the finalized ${mode.docTitle} generated via Zero-Form AVA.`,
-          ``,
-          `Reference:        ${mode.docNumber}`,
-          `Resident:         ${extracted.name ?? "—"}`,
-          `Location:         ${extracted.location ?? "—"}`,
-          `Classification:   ${extracted.classification ?? "—"}`,
-          `Urgency:          ${extracted.urgency ?? "—"}`,
-          `Signature Hash:   ${voicePrintHash ? voicePrintHash.slice(0, 32) + "…" : "SHA-256 · pending"}`,
-          `Signature Captured: ${signatureData ? "Yes" : "No"}`,
-          `Damage Pins:      ${pins.length}`,
-          ``,
-          `Transcript:`,
-          extracted.transcript || "(awaiting voice)",
-          ``,
-          `— Attached: ${mode.docNumber}.pdf (please attach the file that was just downloaded to your device)`,
-        ];
-        const body = encodeURIComponent(bodyLines.join("\n"));
-        const mailto = `mailto:${OFFICE_EMAIL}?subject=${subject}&body=${body}`;
-        try { window.location.href = mailto; } catch {}
-        setTimeout(() => setDispatch(null), 2600);
-      }, 1600);
-
-    } catch (err) {
-      console.error("PDF export failed", err);
-    } finally {
-      clearInterval(tick);
-      setExporting(false);
+      doc.save(`${docNo}.pdf`);
+      setExportState("done");
+      setTimeout(() => setExportState("idle"), 2200);
+    } catch (e) {
+      console.error(e);
+      setExportState("idle");
     }
-  };
+  }
 
   return (
-    <section id="document" className="py-24 md:py-32 relative">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="max-w-2xl mb-12">
-          <p className="reveal-up text-xs uppercase tracking-[0.25em] text-primary mb-3">Dynamic PDF · {mode.docTitle}</p>
-          <h2 className="reveal-up text-3xl md:text-5xl font-display font-bold leading-tight">
-            A printable {mode.docTitle.toLowerCase()},<br/>written by your voice.
-          </h2>
-          <p className="reveal-up mt-4 text-muted-foreground">
-            Every captured signal — voice, vision, signature — composes itself into a dispatchable document.
-          </p>
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-24 pt-4">
+      {/* Header */}
+      <div className="mb-6 flex flex-col gap-y-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border"
+            style={{ background: `${accent}22`, borderColor: `${accent}55` }}
+          >
+            <Icon className="h-5 w-5" style={{ color: accent }} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              {dep.tagline}
+            </div>
+            <h1 className="truncate font-display text-2xl font-bold tracking-tight leading-tight">
+              {dep.agency} — Command Terminal
+            </h1>
+          </div>
         </div>
+        <button
+          onClick={simulateCall}
+          disabled={simulating}
+          className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border px-4 py-2 text-xs font-semibold transition hover:brightness-110 disabled:opacity-60 sm:self-auto"
+          style={{ background: `${accent}18`, borderColor: `${accent}55`, color: accent }}
+        >
+          {simulating ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
+          Simulate Department Call
+        </button>
+      </div>
 
-        <div className="reveal-up grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
-          <Document
-            mode={mode}
-            extracted={extracted}
-            pins={pins}
-            signatureData={signatureData}
-            voicePrintHash={voicePrintHash}
-            thumbnails={thumbnails}
-          />
-          <aside className="space-y-4 self-start">
-            <Pipeline
-              extracted={extracted}
-              signatureData={signatureData}
-              voicePrintHash={voicePrintHash}
-              pins={pins}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+        {/* Left column: capture */}
+        <div className="lg:col-span-3 flex flex-col gap-y-6">
+          {/* Record card */}
+          <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[rgba(15,23,42,0.55)] p-6 shadow-2xl backdrop-blur-xl">
+            <div
+              className="pointer-events-none absolute -top-32 -right-32 h-72 w-72 rounded-full opacity-30 blur-3xl"
+              style={{ background: accent }}
             />
-            <div className="rounded-2xl glass p-6">
+            <div className="relative flex flex-col items-center gap-y-5 text-center">
               <button
-                onClick={exportPdf}
-                disabled={exporting}
-                className="w-full text-sm font-semibold px-4 py-3.5 rounded-xl glass glow-emerald text-primary inline-flex items-center justify-center gap-2 hover:bg-primary/10 transition disabled:opacity-70"
+                onClick={recording ? stopRecording : startRecording}
+                className="group relative flex h-40 w-40 items-center justify-center rounded-full transition-transform hover:scale-105 focus:outline-none"
+                aria-label={recording ? "Stop recording" : "Start recording"}
               >
-                <Download className="h-4 w-4" />
-                {exporting ? "Exporting…" : done ? "Export again" : "Export secure PDF"}
+                <span
+                  className={`absolute inset-0 rounded-full ${recording ? "animate-ping" : ""}`}
+                  style={{ background: `${accent}33` }}
+                />
+                <span
+                  className="absolute inset-2 rounded-full"
+                  style={{ background: `${accent}22`, boxShadow: `0 0 60px 4px ${accent}66` }}
+                />
+                <span
+                  className={`relative flex h-24 w-24 items-center justify-center rounded-full border-2 shadow-inner ${recording ? "animate-pulse" : ""}`}
+                  style={{ borderColor: accent, background: `${accent}` }}
+                >
+                  {recording ? <MicOff className="h-10 w-10 text-white" /> : <Mic className="h-10 w-10 text-white" />}
+                </span>
               </button>
-
-              {(exporting || done) && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-muted-foreground mb-2">
-                    <span>{done ? "Document signed" : "Rendering & signing"}</span>
-                    <span className={done ? "text-primary" : ""}>{Math.min(100, Math.round(progress))}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(100, progress)}%`,
-                        background: "linear-gradient(90deg, var(--color-secondary), var(--color-primary))",
-                        boxShadow: "0 0 18px color-mix(in oklab, var(--color-primary) 60%, transparent)",
-                      }}
-                    />
-                  </div>
-                  {done && (
-                    <div className="mt-3 text-xs text-primary inline-flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> {mode.docNumber}.pdf — ready
-                    </div>
-                  )}
+              <div className="flex flex-col items-center gap-y-1">
+                <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground">
+                  {recording ? "Listening…" : "Voice Capture"}
                 </div>
+                <div className="font-display text-lg font-bold tracking-tight leading-tight">
+                  TAP TO RECORD INCOMING CALL
+                </div>
+              </div>
+              <canvas
+                ref={canvasRef}
+                width={560}
+                height={72}
+                className="w-full max-w-lg rounded-xl border border-white/10 bg-black/30"
+              />
+            </div>
+          </section>
+
+          {/* Live transcript */}
+          <section className="rounded-3xl border border-white/10 bg-[rgba(15,23,42,0.55)] p-6 shadow-2xl backdrop-blur-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Radio className="h-4 w-4" style={{ color: accent }} />
+                <h2 className="font-display text-sm font-bold uppercase tracking-widest">
+                  Live Transcription
+                </h2>
+              </div>
+              {(recording || simulating) && (
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-red-400">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
+                  Streaming
+                </span>
               )}
             </div>
-          </aside>
-        </div>
-      </div>
-
-      {/* Email Dispatcher Overlay */}
-      {dispatch && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 backdrop-blur-md bg-black/60 animate-in fade-in duration-300">
-          <div className="w-full max-w-md rounded-2xl border border-primary/30 bg-[rgba(15,23,42,0.85)] p-6 shadow-[0_30px_100px_-20px_var(--primary)] backdrop-blur-xl">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-xl bg-primary/40 blur-md animate-pulse" />
-                <div className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-primary/40 bg-primary/10">
-                  {dispatch === "sending" ? (
-                    <svg className="h-5 w-5 text-primary animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                      <path className="opacity-90" d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none" />
-                    </svg>
-                  ) : (
-                    <CheckCircle2 className="h-5 w-5 text-primary" />
-                  )}
-                </div>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] uppercase tracking-[0.3em] text-primary/80">Email dispatcher</div>
-                <div className="font-display font-bold text-sm truncate">
-                  {dispatch === "sending" ? "Encrypting & transmitting…" : "Ready to send"}
-                </div>
-              </div>
+            <div
+              ref={transcriptScrollRef}
+              className="max-h-56 min-h-[9rem] overflow-y-auto rounded-xl border border-white/10 bg-black/30 p-4 text-sm leading-relaxed text-foreground/90"
+            >
+              {transcript ? (
+                <span>
+                  {transcript}
+                  {(recording || simulating) && <span className="ml-0.5 inline-block w-2 animate-pulse" style={{ color: accent }}>▍</span>}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Awaiting incoming call. Tap the microphone or run a simulated call to begin.
+                </span>
+              )}
             </div>
+          </section>
 
-            <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
-              {dispatch === "sending"
-                ? "Securely transmitting encrypted PDF report to central office ("
-                : "Prefilled draft opened in your mail client for "}
-              <span className="text-primary font-mono">{OFFICE_EMAIL}</span>
-              {dispatch === "sending" ? ")…" : ". Attach the downloaded PDF and hit send."}
-            </p>
-
-            {/* Progress bars */}
-            <div className="mt-4 space-y-2">
-              {["Compiling document state", "AES-256 encrypting payload", "Routing to central office"].map((step, i) => (
-                <div key={step} className="flex items-center gap-2 text-[11px]">
-                  <span className={`h-1.5 w-1.5 rounded-full ${dispatch === "sent" || i < 2 ? "bg-primary" : "bg-primary/50 animate-pulse"}`} />
-                  <span className={dispatch === "sent" ? "text-foreground" : "text-muted-foreground"}>{step}</span>
-                </div>
+          {/* Extracted form */}
+          <section className="rounded-3xl border border-white/10 bg-[rgba(15,23,42,0.55)] p-6 shadow-2xl backdrop-blur-xl">
+            <div className="mb-4 flex items-center gap-2">
+              <Sparkles className="h-4 w-4" style={{ color: accent }} />
+              <h2 className="font-display text-sm font-bold uppercase tracking-widest">
+                {dep.name} Intake Fields
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {dep.fields.map((f) => (
+                <FieldInput
+                  key={f.key}
+                  field={f}
+                  value={merged[f.key] || ""}
+                  extractedHit={!!extracted[f.key]}
+                  accent={accent}
+                  onChange={(v) => updateField(f.key, v)}
+                />
               ))}
             </div>
+          </section>
+        </div>
 
-            <div className="mt-5 flex items-center justify-between gap-2">
-              <a
-                href={`mailto:${OFFICE_EMAIL}`}
-                className="text-[11px] text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary transition"
-              >
-                Open mail again
-              </a>
-              <button
-                onClick={() => setDispatch(null)}
-                className="text-[11px] text-muted-foreground hover:text-foreground transition px-3 py-1.5 rounded-md border border-white/10 bg-white/[0.03]"
-              >
-                Close
-              </button>
-            </div>
+        {/* Right column: PDF preview + export */}
+        <div className="lg:col-span-2">
+          <div className="lg:sticky lg:top-24 flex flex-col gap-y-4">
+            <DocumentPreview dep={dep} merged={merged} transcript={transcript} accent={accent} />
+            <button
+              onClick={exportPdf}
+              disabled={exportState === "generating"}
+              className="group relative w-full overflow-hidden rounded-2xl py-4 text-sm font-bold uppercase tracking-widest text-white transition-all disabled:opacity-60"
+              style={{ background: accent, boxShadow: `0 0 44px -8px ${accent}` }}
+            >
+              <span className="relative z-10 inline-flex items-center justify-center gap-2">
+                {exportState === "generating" && <Loader2 className="h-4 w-4 animate-spin" />}
+                {exportState === "done" && <CheckCircle2 className="h-4 w-4" />}
+                {exportState === "idle" && <Download className="h-4 w-4" />}
+                {exportState === "done" ? "PDF Downloaded" : "Export Secure PDF"}
+              </span>
+              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+            </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Field input ---------- */
+function FieldInput({
+  field,
+  value,
+  onChange,
+  extractedHit,
+  accent,
+}: {
+  field: DepartmentField;
+  value: string;
+  onChange: (v: string) => void;
+  extractedHit: boolean;
+  accent: string;
+}) {
+  return (
+    <label className="flex flex-col gap-y-1.5">
+      <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        {field.label}
+        {extractedHit && (
+          <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold normal-case tracking-normal" style={{ background: `${accent}22`, color: accent }}>
+            <Sparkles className="h-2.5 w-2.5" /> auto
+          </span>
+        )}
+      </span>
+      {field.type === "select" ? (
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
+        >
+          <option value="">Select…</option>
+          {field.options?.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      ) : field.type === "toggle" ? (
+        <div className="flex gap-2">
+          {["Yes", "No"].map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => onChange(v)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${value === v ? "text-white" : "text-muted-foreground hover:text-foreground border-white/10 bg-black/20"}`}
+              style={value === v ? { background: accent, borderColor: accent } : undefined}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <input
+          type={field.type === "number" ? "number" : "text"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={field.placeholder}
+          className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
+        />
       )}
-    </section>
+    </label>
   );
 }
 
-
-function Document({
-  mode, extracted, pins, signatureData, voicePrintHash, thumbnails,
-}: {
-  mode: ModeConfig;
-  extracted: Extracted;
-  pins: { x: number; y: number; label: string }[];
-  signatureData: string | null;
-  voicePrintHash: string | null;
-  thumbnails: { id: string; label: string; src: string }[];
-}) {
-  const pinThumb = thumbnails.find((t) => t.label.startsWith("Pin map"));
+/* ---------- Document Preview ---------- */
+function DocumentPreview({ dep, merged, transcript, accent }: { dep: DepartmentConfig; merged: Extracted; transcript: string; accent: string }) {
+  const docNo = useMemo(() => `${dep.docPrefix}-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 90000) + 10000)}`, [dep.key]);
 
   return (
-    <div className="rounded-2xl bg-[oklch(0.98_0.005_240)] text-[oklch(0.18_0.02_250)] shadow-2xl overflow-hidden border border-white/5">
-      <div className="px-6 sm:px-8 py-6 border-b border-black/10 flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-[0.3em] text-black/50">{mode.docTitle}</div>
-          <div className="font-display font-bold text-xl sm:text-2xl truncate">{mode.docNumber}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-[0.3em] text-black/50">Status</div>
-          <div className="inline-flex items-center gap-1.5 mt-1 text-sm font-semibold text-emerald-600">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            {extracted.urgency ? mode.docFooter : "Pending capture"}
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl">
+      <div className="h-2" style={{ background: accent }} />
+      <div className="bg-slate-900 px-5 py-4 text-white">
+        <div className="text-[9px] font-bold uppercase tracking-[0.25em] opacity-70">{dep.agency}</div>
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <div className="font-display text-base font-bold leading-tight">{dep.docTitle}</div>
+          <div className="text-right text-[10px] opacity-80">
+            <div className="font-mono">{docNo}</div>
+            <div>{new Date().toLocaleDateString()}</div>
           </div>
         </div>
       </div>
-
-      <div className="px-6 sm:px-8 py-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5 text-sm border-b border-black/10">
-        <DocRow label={mode.fields.name.label} value={extracted.name ?? "—"} />
-        <DocRow label={mode.docContactLabel} value={mode.docContactValue} />
-        <DocRow label={mode.fields.location.label} value={extracted.location ?? "—"} />
-        <DocRow label={mode.fields.urgency.label} value={extracted.urgency ?? "—"} highlight={!!extracted.urgency} />
-        <DocRow label={mode.fields.classification.label} value={extracted.classification ?? "—"} />
-        <DocRow label="Date" value="30 Jun 2026 · 14:22" />
-      </div>
-
-      <div className="px-6 sm:px-8 py-5 border-b border-black/10">
-        <div className="text-[10px] uppercase tracking-[0.3em] text-black/50 mb-2">Voice transcript</div>
-        <p className="text-sm leading-relaxed text-black/80 italic">
-          {extracted.transcript || "Awaiting voice capture…"}
-        </p>
-      </div>
-
-      <div className="px-6 sm:px-8 py-5 grid grid-cols-1 md:grid-cols-[1fr_180px] gap-6 items-start border-b border-black/10">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.3em] text-black/50 mb-2">
-            {mode.schematic === "car" ? "Vehicle damage map" : "Damage map"} · {pins.length} pin{pins.length === 1 ? "" : "s"}
-          </div>
-          <ul className="text-sm text-black/80 space-y-1">
-            {pins.length === 0 && <li className="text-black/40 italic">No damage points pinned.</li>}
-            {pins.map((p, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                {p.label} <span className="text-black/40">· ({p.x.toFixed(0)}%, {p.y.toFixed(0)}%)</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="rounded-md border border-black/10 bg-black/[0.03] overflow-hidden aspect-[4/3]">
-          {pinThumb ? (
-            <img src={pinThumb.src} alt="Damage map" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full grid place-items-center text-[10px] uppercase tracking-widest text-black/40">
-              Pin map
+      <div className="px-5 py-4 text-slate-800">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Incident Details</div>
+        <div className="mt-2 divide-y divide-slate-200">
+          {dep.fields.map((f) => (
+            <div key={f.key} className="grid grid-cols-[minmax(0,1fr)_2fr] gap-2 py-1.5 text-xs">
+              <div className="font-semibold text-slate-600">{f.label}</div>
+              <div className="min-w-0 break-words text-slate-900">{merged[f.key] || <span className="text-slate-400">—</span>}</div>
             </div>
-          )}
+          ))}
         </div>
-      </div>
 
-      <div className="px-6 sm:px-8 py-6 grid grid-cols-1 sm:grid-cols-2 gap-6 items-end">
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.3em] text-black/50 mb-2">Signature</div>
-          {signatureData ? (
-            <img src={signatureData} alt="Signature" className="h-14 w-auto max-w-full" />
-          ) : (
-            <svg viewBox="0 0 220 60" className="w-44 h-12 text-emerald-600">
-              <path d="M5 45 Q 25 5, 50 40 T 100 35 Q 130 60, 160 20 T 215 35" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-            </svg>
-          )}
-          <div className="text-xs text-black/60 mt-1">
-            {extracted.name ?? "Pending"} · {voicePrintHash ? "voiceprint verified" : "biometric pending"}
+        <div className="mt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Voice Transcript</div>
+        <p className="mt-1 max-h-32 overflow-y-auto rounded-md bg-slate-50 p-2 text-[11px] leading-relaxed text-slate-700">
+          {transcript || <span className="text-slate-400">(no transcript captured)</span>}
+        </p>
+
+        {/* Department-specific footer */}
+        {dep.key === "police" && (
+          <div className="mt-4 grid grid-cols-2 gap-3 text-[10px]">
+            <div>
+              <div className="mb-6 border-b border-slate-300" />
+              <div className="text-slate-500">Arresting Officer Signature</div>
+            </div>
+            <div className="flex items-center justify-center rounded-md border-2 border-dashed border-slate-300 py-4">
+              <span className="rotate-[-8deg] font-bold uppercase tracking-widest text-slate-400">Case Stamp</span>
+            </div>
           </div>
-        </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-[0.3em] text-black/50 mb-2">Authorisation</div>
-          <div className="font-display font-bold">AVA · {mode.label}</div>
-          <div className="text-xs text-black/60 font-mono break-all">
-            {voicePrintHash ? `${voicePrintHash.slice(7, 19)}…` : "SHA-256 · pending"}
+        )}
+        {dep.key === "fire" && (
+          <div className="mt-4 space-y-1.5 text-[11px]">
+            {["Building safety clearance", "Gas / utility isolation", "Water supply secured", "HAZMAT team briefed"].map((c) => (
+              <label key={c} className="flex items-center gap-2 text-slate-700">
+                <span className="grid h-4 w-4 place-items-center rounded border border-slate-400 bg-white">
+                  <span className="h-2 w-2 rounded-sm" style={{ background: accent }} />
+                </span>
+                {c}
+              </label>
+            ))}
           </div>
-        </div>
+        )}
+        {dep.key === "health" && (
+          <div className="mt-4 grid grid-cols-3 gap-2 text-[10px]">
+            {[
+              { l: "HR", v: "—" },
+              { l: "BP", v: "—" },
+              { l: "SpO₂", v: "—" },
+              { l: "RR", v: "—" },
+              { l: "Temp", v: "—" },
+              { l: "GCS", v: "—" },
+            ].map((v) => (
+              <div key={v.l} className="rounded-md border border-slate-200 p-2 text-center">
+                <div className="font-bold text-slate-500">{v.l}</div>
+                <div className="text-slate-800">{v.v}</div>
+              </div>
+            ))}
+            <div className="col-span-3 mt-2 rounded-md border border-dashed border-slate-300 p-3 text-slate-500">
+              Paramedic handover notes:
+              <div className="mt-3 h-8 border-b border-slate-300" />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function DocRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="min-w-0">
-      <div className="text-[10px] uppercase tracking-[0.3em] text-black/50">{label}</div>
-      <div className={`font-display font-semibold mt-0.5 truncate ${highlight ? "text-emerald-700" : "text-black"}`}>
-        {value}
-      </div>
-    </div>
-  );
+/* ---------- PDF helpers ---------- */
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function Pipeline({
-  extracted, signatureData, voicePrintHash, pins,
-}: {
-  extracted: Extracted;
-  signatureData: string | null;
-  voicePrintHash: string | null;
-  pins: { x: number; y: number; label: string }[];
-}) {
-  const steps = [
-    { label: "Voice captured", done: extracted.transcript.length > 5 },
-    { label: "Entities extracted", done: !!extracted.name && !!extracted.location },
-    { label: "ID verified", done: !!extracted.name },
-    { label: "Defects mapped", done: pins.length > 0 },
-    { label: "Signature bound", done: !!signatureData },
-    { label: "Voice consent verified", done: !!voicePrintHash },
-  ];
-  return (
-    <div className="rounded-2xl glass p-6">
-      <div className="text-xs uppercase tracking-widest text-muted-foreground mb-5 flex items-center gap-2">
-        <FileText className="h-4 w-4 text-primary" /> Generation pipeline
-      </div>
-      <ol className="space-y-4">
-        {steps.map((s, i) => (
-          <li key={s.label} className="flex items-center gap-3">
-            <span className={`relative grid place-items-center h-6 w-6 rounded-full border ${
-              s.done ? "bg-primary/15 border-primary/40 text-primary" : "bg-white/5 border-white/10 text-muted-foreground/60"
-            }`}>
-              {s.done ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Circle className="h-3 w-3" />}
-              {i < steps.length - 1 && <span className={`absolute top-full h-4 w-px ${s.done ? "bg-primary/30" : "bg-white/10"}`} />}
-            </span>
-            <span className={`text-sm ${s.done ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
+function drawSignatureBlock(doc: jsPDF, x: number, y: number, pageW: number, sigLabel: string, stampLabel: string) {
+  const rightX = pageW / 2 + 20;
+  doc.setDrawColor(120, 120, 120);
+  doc.line(x, y + 40, x + 200, y + 40);
+  doc.setFontSize(9);
+  doc.setTextColor(80, 80, 80);
+  doc.text(sigLabel, x, y + 54);
+  doc.setLineDashPattern([3, 3], 0);
+  doc.rect(rightX, y, 160, 60);
+  doc.setLineDashPattern([], 0);
+  doc.setTextColor(160, 160, 160);
+  doc.text(stampLabel, rightX + 80, y + 34, { align: "center" });
 }
-
-/* ============== FOOTER ============== */
-function Footer() {
-  return (
-    <footer className="border-t border-white/5 py-10 mt-10">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-md glass grid place-items-center">
-            <div className="h-1.5 w-1.5 rounded-full bg-primary glow-emerald" />
-          </div>
-          <span>Zero-Form AVA · Ambient Voice App</span>
-        </div>
-        <div>© 2026 · Crafted for a paperless future</div>
-      </div>
-    </footer>
-  );
+function drawChecklist(doc: jsPDF, x: number, y: number, pageW: number, items: string[]) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(20, 20, 20);
+  doc.text("BUILDING SAFETY CHECKLIST", x, y);
+  doc.setLineWidth(1.5);
+  doc.line(x, y + 4, x + 200, y + 4);
+  y += 18;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  items.forEach((c) => {
+    doc.rect(x, y - 9, 10, 10);
+    doc.text(c, x + 18, y);
+    y += 18;
+  });
+}
+function drawVitalsFooter(doc: jsPDF, x: number, y: number, pageW: number) {
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(20, 20, 20);
+  doc.text("VITALS & HANDOVER", x, y);
+  doc.setLineWidth(1.5);
+  doc.line(x, y + 4, x + 170, y + 4);
+  y += 18;
+  const cols = ["HR", "BP", "SpO2", "RR", "Temp", "GCS"];
+  const colW = (pageW - x * 2) / cols.length;
+  doc.setFontSize(9);
+  cols.forEach((c, i) => {
+    doc.rect(x + i * colW, y, colW - 6, 40);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(80, 80, 80);
+    doc.text(c, x + i * colW + 6, y + 14);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(160, 160, 160);
+    doc.text("—", x + i * colW + 6, y + 32);
+  });
+  y += 52;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(80, 80, 80);
+  doc.text("Paramedic Handover Notes:", x, y);
+  doc.setLineDashPattern([2, 2], 0);
+  doc.line(x, y + 30, pageW - x, y + 30);
+  doc.line(x, y + 50, pageW - x, y + 50);
+  doc.setLineDashPattern([], 0);
 }
