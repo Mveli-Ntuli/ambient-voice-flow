@@ -7,6 +7,7 @@ import {
   type FormEvent,
 } from "react";
 import { useRouterState } from "@tanstack/react-router";
+import { toast } from "sonner";
 import {
   Loader2,
   Lock,
@@ -14,14 +15,23 @@ import {
   Shield,
   KeyRound,
   IdCard,
-  Radio,
+  Mail,
   ArrowLeft,
   Sparkles,
+  UserPlus,
+  LogIn,
+  Building2,
 } from "lucide-react";
-import { useDepartment } from "@/lib/department";
+import {
+  useDepartment,
+  DEPARTMENTS,
+  DEPARTMENT_ORDER,
+  type DepartmentKey,
+} from "@/lib/department";
 import { DepartmentLanding } from "@/components/department-landing";
 
-const SESSION_KEY = "ava.mock.session";
+const USERS_KEY = "ava_users_db";
+const SESSION_KEY = "ava_current_session";
 const RECEPTION_KEY = "ava.mock.reception";
 
 /* ---------- Reception DB (kept for backward-compat with /reception route) ---------- */
@@ -45,16 +55,65 @@ export function userScopedKey(base: string, email: string | undefined | null) {
   return `ava.user::${who}::${base}`;
 }
 
-/* ---------- Agent session ---------- */
+/* ---------- Password hashing (SHA-256) ---------- */
+async function hashPassword(pw: string): Promise<string> {
+  const buf = new TextEncoder().encode(pw);
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/* ---------- Users DB ---------- */
+type UserRecord = {
+  email: string;
+  badge: string;
+  passwordHash: string;
+  department: DepartmentKey;
+  createdAt: number;
+};
+
+const MASTER_SEED_PLAINTEXT = "master123";
+async function seedIfEmpty() {
+  try {
+    const raw = window.localStorage.getItem(USERS_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length > 0) return;
+    }
+    const master: UserRecord = {
+      email: "master@ava.gov",
+      badge: "AVA-001",
+      passwordHash: await hashPassword(MASTER_SEED_PLAINTEXT),
+      department: "police",
+      createdAt: Date.now(),
+    };
+    window.localStorage.setItem(USERS_KEY, JSON.stringify([master]));
+  } catch {}
+}
+function readUsers(): UserRecord[] {
+  try {
+    const raw = window.localStorage.getItem(USERS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? (arr as UserRecord[]) : [];
+  } catch { return []; }
+}
+function writeUsers(list: UserRecord[]) {
+  try { window.localStorage.setItem(USERS_KEY, JSON.stringify(list)); } catch {}
+}
+
+/* ---------- Session ---------- */
 type Session = {
   badge: string;
-  station: string;
+  email: string;
+  department: DepartmentKey;
+  loggedInAt: number;
+  // legacy compat (used by dashboard code)
   fullName: string;
   refCode: string;
   room: string;
   residence: string;
-  email: string;
-  loggedInAt: number;
+  station: string;
 };
 
 function readSession(): Session | null {
@@ -75,9 +134,11 @@ type AuthContextValue = {
   ready: boolean;
   authed: boolean;
   session: Session | null;
-  signIn: (input: { badge: string; password: string; station: string }) => Promise<void>;
+  login: (input: { identifier: string; password: string }) => Promise<void>;
+  register: (input: { email: string; badge: string; password: string; department: DepartmentKey }) => Promise<void>;
   signOut: () => void;
-  // Legacy back-compat (no-op stubs)
+  // Legacy stubs
+  signIn: (input: { badge: string; password: string; station: string }) => Promise<void>;
   signUp: (input: { fullName: string; email: string; password: string; refCode: string }) => Promise<void>;
 };
 
@@ -88,8 +149,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    setSession(readSession());
-    setReady(true);
+    (async () => {
+      await seedIfEmpty();
+      setSession(readSession());
+      setReady(true);
+    })();
     const onStorage = (e: StorageEvent) => {
       if (e.key === SESSION_KEY) setSession(readSession());
     };
@@ -97,28 +161,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
+  const buildSession = (u: UserRecord): Session => ({
+    badge: u.badge,
+    email: u.email,
+    department: u.department,
+    loggedInAt: Date.now(),
+    fullName: `Agent ${u.badge}`,
+    refCode: u.badge,
+    room: u.badge,
+    residence: DEPARTMENTS[u.department].agency,
+    station: u.badge,
+  });
+
   const value: AuthContextValue = {
     ready,
     authed: !!session,
     session,
-    signIn: async ({ badge, password, station }) => {
-      if (!badge.trim() || !station.trim()) throw new Error("Badge and station code are required.");
-      if (password.length < 4) throw new Error("Password must be at least 4 characters.");
-      const s: Session = {
-        badge: badge.trim().toUpperCase(),
-        station: station.trim().toUpperCase(),
-        fullName: `Agent ${badge.trim().toUpperCase()}`,
-        refCode: station.trim().toUpperCase(),
-        room: station.trim().toUpperCase(),
-        residence: "Dispatch Unit",
-        email: `${badge.trim().toLowerCase()}@dispatch.local`,
-        loggedInAt: Date.now(),
-      };
+    login: async ({ identifier, password }) => {
+      const id = identifier.trim().toLowerCase();
+      if (!id || !password) throw new Error("Please enter your credentials.");
+      const users = readUsers();
+      const user = users.find(
+        (u) => u.email.toLowerCase() === id || u.badge.toLowerCase() === id
+      );
+      if (!user) throw new Error("Access Denied: Account does not exist.");
+      const hash = await hashPassword(password);
+      if (hash !== user.passwordHash) throw new Error("Access Denied: Invalid security credentials.");
+      const s = buildSession(user);
       writeSession(s);
       setSession(s);
     },
-    signUp: async () => { throw new Error("Sign-up disabled in Dispatch mode."); },
-    signOut: () => { writeSession(null); setSession(null); },
+    register: async ({ email, badge, password, department }) => {
+      const e = email.trim().toLowerCase();
+      const b = badge.trim().toUpperCase();
+      if (!e || !b || !password) throw new Error("All fields are required.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw new Error("Please enter a valid email address.");
+      if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+      if (!DEPARTMENTS[department]) throw new Error("Please choose a department.");
+      const users = readUsers();
+      if (users.some((u) => u.email.toLowerCase() === e || u.badge.toUpperCase() === b)) {
+        throw new Error("Account already exists with this credential.");
+      }
+      const rec: UserRecord = {
+        email: e,
+        badge: b,
+        passwordHash: await hashPassword(password),
+        department,
+        createdAt: Date.now(),
+      };
+      writeUsers([...users, rec]);
+    },
+    signOut: () => {
+      try { window.localStorage.removeItem(SESSION_KEY); } catch {}
+      setSession(null);
+    },
+    // Legacy back-compat
+    signIn: async ({ badge, password }) => {
+      await value.login({ identifier: badge, password });
+    },
+    signUp: async () => { throw new Error("Legacy signup disabled. Use Register."); },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -133,17 +234,32 @@ export const useDemoAuth = useAuth;
 
 /* ---------- Auth Gate ---------- */
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { ready, authed, signIn } = useAuth();
-  const { ready: deptReady, department, clear: clearDept } = useDepartment();
+  const { ready, authed, session, login, register } = useAuth();
+  const { ready: deptReady, department, select: selectDept, clear: clearDept } = useDepartment();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isPublicRoute = pathname === "/reception";
 
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [identifier, setIdentifier] = useState("");
+  const [email, setEmail] = useState("");
   const [badge, setBadge] = useState("");
   const [password, setPassword] = useState("");
-  const [station, setStation] = useState("");
+  const [regDept, setRegDept] = useState<DepartmentKey>("police");
   const [loading, setLoading] = useState(false);
   const [entered, setEntered] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync active theme with signed-in user's department
+  useEffect(() => {
+    if (authed && session && (!department || department.key !== session.department)) {
+      selectDept(session.department);
+    }
+  }, [authed, session, department, selectDept]);
+
+  // Prefill register dept from landing selection
+  useEffect(() => {
+    if (department) setRegDept(department.key);
+  }, [department]);
 
   useEffect(() => {
     if (authed && department) {
@@ -161,13 +277,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  // Public routes bypass everything
   if (isPublicRoute) return <>{children}</>;
 
-  // STEP 1: Department selection
-  if (!department) return <DepartmentLanding />;
-
-  // STEP 3+: Authenticated
+  // If session exists, skip landing entirely
   if (authed) {
     return (
       <div className={`transition-all duration-700 ease-out ${entered ? "opacity-100 scale-100" : "opacity-0 scale-[0.98]"}`}>
@@ -176,18 +288,44 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  // STEP 2: Themed agent login
+  // STEP 1: Department selection (only if no session and no dept picked)
+  if (!department) return <DepartmentLanding />;
+
   const Icon = department.icon;
   const accent = department.theme.accentHex;
 
-  const submit = async (e: FormEvent) => {
+  const submitLogin = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      await signIn({ badge, password, station });
+      await login({ identifier, password });
+      toast.success("Access granted. Command terminal online.");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      const msg = err instanceof Error ? err.message : "Something went wrong.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitRegister = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      await register({ email, badge, password, department: regDept });
+      toast.success("Account registered. Please sign in.");
+      setIdentifier(email);
+      setPassword("");
+      setEmail("");
+      setBadge("");
+      setMode("login");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Something went wrong.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -243,74 +381,148 @@ export function AuthGate({ children }: { children: ReactNode }) {
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-[rgba(15,23,42,0.65)] p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-8">
+            {/* Tab toggle */}
+            <div className="mb-6 flex rounded-lg border border-white/10 bg-black/30 p-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => { setMode("login"); setError(null); }}
+                className={`flex-1 rounded-md px-3 py-2 transition-all ${mode === "login" ? "bg-white/10 text-foreground shadow-inner" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <LogIn className="mr-1.5 inline h-3.5 w-3.5" /> Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode("register"); setError(null); }}
+                className={`flex-1 rounded-md px-3 py-2 transition-all ${mode === "register" ? "bg-white/10 text-foreground shadow-inner" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <UserPlus className="mr-1.5 inline h-3.5 w-3.5" /> Register
+              </button>
+            </div>
+
             <div className="flex flex-col gap-y-2">
               <h1 className="font-display text-xl font-bold tracking-tight leading-snug">
-                Secure Agent Login
+                {mode === "login" ? "Secure Agent Login" : "Register New Agent"}
               </h1>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Enter your credentials to activate the command terminal.
+                {mode === "login"
+                  ? "Enter your credentials to activate the command terminal."
+                  : "Provision a new operator account for this agency."}
               </p>
             </div>
 
-            <form onSubmit={submit} className="mt-6 flex flex-col gap-y-4">
-              <FormField
-                label="Agent / Officer Badge Number"
-                icon={IdCard}
-                value={badge}
-                onChange={setBadge}
-                placeholder="e.g. SAPS-441982"
-                mono
-              />
-              <FormField
-                label="Password"
-                icon={Lock}
-                value={password}
-                onChange={setPassword}
-                placeholder="••••••••"
-                type="password"
-              />
-              <FormField
-                label="Dispatch Station / Unit Code"
-                icon={Radio}
-                value={station}
-                onChange={setStation}
-                placeholder="e.g. STN-04"
-                mono
-              />
+            {mode === "login" ? (
+              <form onSubmit={submitLogin} className="mt-6 flex flex-col gap-y-4">
+                <FormField
+                  label="Email or Badge ID"
+                  icon={IdCard}
+                  value={identifier}
+                  onChange={setIdentifier}
+                  placeholder="master@ava.gov or AVA-001"
+                />
+                <FormField
+                  label="Password"
+                  icon={Lock}
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="••••••••"
+                  type="password"
+                />
 
-              {error && (
-                <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
+                {error && <ErrorBanner message={error} />}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="group relative mt-2 w-full overflow-hidden rounded-lg py-3 text-sm font-semibold text-primary-foreground transition-all disabled:opacity-60"
-                style={{
-                  background: accent,
-                  boxShadow: `0 0 32px -8px ${accent}, 0 0 60px -12px ${accent}`,
-                }}
-              >
-                <span className="relative z-10 inline-flex items-center justify-center gap-2">
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  <Shield className="h-4 w-4" />
-                  Access Command Terminal
-                </span>
-                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              </button>
-            </form>
+                <SubmitButton loading={loading} accent={accent} label="Access Command Terminal" />
+              </form>
+            ) : (
+              <form onSubmit={submitRegister} className="mt-6 flex flex-col gap-y-4">
+                <FormField
+                  label="Email Address"
+                  icon={Mail}
+                  value={email}
+                  onChange={setEmail}
+                  placeholder="agent@agency.gov"
+                  type="email"
+                />
+                <FormField
+                  label="Unique Agent Badge ID"
+                  icon={IdCard}
+                  value={badge}
+                  onChange={setBadge}
+                  placeholder="e.g. SAPS-441982"
+                  mono
+                />
+                <FormField
+                  label="Password"
+                  icon={Lock}
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="At least 6 characters"
+                  type="password"
+                />
+                <label className="flex flex-col gap-y-1.5">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Department
+                  </span>
+                  <div className="group relative">
+                    <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                    <select
+                      required
+                      value={regDept}
+                      onChange={(e) => setRegDept(e.target.value as DepartmentKey)}
+                      className="w-full appearance-none rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
+                    >
+                      {DEPARTMENT_ORDER.map((k) => (
+                        <option key={k} value={k} className="bg-slate-900">
+                          {DEPARTMENTS[k].agency}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </label>
+
+                {error && <ErrorBanner message={error} />}
+
+                <SubmitButton loading={loading} accent={accent} label="Register Account" />
+              </form>
+            )}
 
             <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground/70">
               <Sparkles className="mr-1 inline h-3 w-3 text-primary" />
-              Demo terminal · any badge + station accepts with 4+ char password.
+              Seeded master agent · <span className="font-mono">master@ava.gov</span> / <span className="font-mono">master123</span>
             </p>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+      <span>{message}</span>
+    </div>
+  );
+}
+
+function SubmitButton({ loading, accent, label }: { loading: boolean; accent: string; label: string }) {
+  return (
+    <button
+      type="submit"
+      disabled={loading}
+      className="group relative mt-2 w-full overflow-hidden rounded-lg py-3 text-sm font-semibold text-primary-foreground transition-all disabled:opacity-60"
+      style={{
+        background: accent,
+        boxShadow: `0 0 32px -8px ${accent}, 0 0 60px -12px ${accent}`,
+      }}
+    >
+      <span className="relative z-10 inline-flex items-center justify-center gap-2">
+        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+        <Shield className="h-4 w-4" />
+        {label}
+      </span>
+      <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+    </button>
   );
 }
 

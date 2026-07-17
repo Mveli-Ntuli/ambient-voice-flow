@@ -136,21 +136,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="sticky top-3 z-30 mx-3 mt-3 flex justify-end md:mx-6 md:mt-4">
             <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-[rgba(15,23,42,0.65)] px-3 py-1.5 text-xs shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)] backdrop-blur-xl">
               <span className="relative flex h-6 w-6 items-center justify-center rounded-full border border-primary/40 bg-primary/15 text-[10px] font-bold text-primary">
-                {session.fullName
-                  .split(" ")
-                  .map((p) => p[0])
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .join("")
-                  .toUpperCase() || "?"}
+                {session.badge.replace(/[^A-Z0-9]/gi, "").slice(0, 2).toUpperCase() || "AG"}
                 <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_var(--primary)]" />
               </span>
-              <span className="font-semibold text-foreground">{session.fullName}</span>
+              <span className="font-semibold text-foreground">Agent {session.badge}</span>
               <span className="hidden text-muted-foreground sm:inline">·</span>
-              <span className="hidden text-muted-foreground sm:inline">Room {session.room}</span>
+              <span className="hidden font-mono text-[10px] uppercase tracking-wider text-primary/80 sm:inline">
+                {session.department}
+              </span>
               <span className="hidden text-muted-foreground md:inline">·</span>
-              <span className="hidden font-mono text-[10px] text-primary/80 md:inline">
-                {session.refCode}
+              <span className="hidden text-emerald-300/90 md:inline">
+                <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 align-middle" />
+                Active Duty
               </span>
             </div>
           </div>
