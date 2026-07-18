@@ -421,13 +421,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   onChange={setIdentifier}
                   placeholder="master@ava.gov or AVA-001"
                 />
-                <FormField
+                <PasswordField
                   label="Password"
-                  icon={Lock}
                   value={password}
                   onChange={setPassword}
                   placeholder="••••••••"
-                  type="password"
                 />
 
                 {error && <ErrorBanner message={error} />}
