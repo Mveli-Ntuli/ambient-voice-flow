@@ -426,6 +426,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   value={password}
                   onChange={setPassword}
                   placeholder="••••••••"
+                  showStrength
                 />
 
                 {error && <ErrorBanner message={error} />}
