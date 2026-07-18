@@ -21,6 +21,8 @@ import {
   UserPlus,
   LogIn,
   Building2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   useDepartment,
@@ -419,13 +421,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   onChange={setIdentifier}
                   placeholder="master@ava.gov or AVA-001"
                 />
-                <FormField
+                <PasswordField
                   label="Password"
-                  icon={Lock}
                   value={password}
                   onChange={setPassword}
                   placeholder="••••••••"
-                  type="password"
+                  showStrength
                 />
 
                 {error && <ErrorBanner message={error} />}
@@ -450,13 +451,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   placeholder="e.g. SAPS-441982"
                   mono
                 />
-                <FormField
+                <PasswordField
                   label="Password"
-                  icon={Lock}
                   value={password}
                   onChange={setPassword}
                   placeholder="At least 6 characters"
-                  type="password"
+                  showStrength
                 />
                 <label className="flex flex-col gap-y-1.5">
                   <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -559,6 +559,90 @@ function FormField({
           className={`w-full rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25 ${mono ? "font-mono tracking-wider" : ""}`}
         />
       </div>
+    </label>
+  );
+}
+
+function evaluatePasswordStrength(pw: string) {
+  const hints: string[] = [];
+  if (pw.length < 8) hints.push("At least 8 characters");
+  if (!/[A-Z]/.test(pw)) hints.push("One uppercase letter");
+  if (!/[a-z]/.test(pw)) hints.push("One lowercase letter");
+  if (!/[0-9]/.test(pw)) hints.push("One number");
+  if (!/[^A-Za-z0-9]/.test(pw)) hints.push("One special character");
+  const met = 5 - hints.length;
+  const score = Math.min(4, Math.max(0, met));
+  const labels = ["Very weak", "Weak", "Fair", "Good", "Strong"];
+  const colors = ["bg-red-500", "bg-red-500", "bg-orange-400", "bg-yellow-400", "bg-emerald-500"];
+  return { score, label: labels[met], color: colors[met], hints };
+}
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  showStrength = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  showStrength?: boolean;
+}) {
+  const [visible, setVisible] = useState(false);
+  const strength = evaluatePasswordStrength(value);
+  return (
+    <label className="flex flex-col gap-y-1.5">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      <div className="group relative">
+        <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+        <input
+          type={visible ? "text" : "password"}
+          required
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-10 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((v) => !v)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground focus:text-primary focus:outline-none"
+          aria-label={visible ? "Hide password" : "Show password"}
+          tabIndex={-1}
+        >
+          {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+      {showStrength && value.length > 0 && (
+        <div className="flex flex-col gap-y-1.5">
+          <div className="flex h-1.5 gap-1">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className={`h-full flex-1 rounded-full transition-colors duration-300 ${i <= strength.score ? strength.color : "bg-white/10"}`}
+              />
+            ))}
+          </div>
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-muted-foreground">{strength.label}</span>
+            <span className="text-muted-foreground">{strength.score}/4</span>
+          </div>
+          {strength.hints.length > 0 && (
+            <ul className="space-y-0.5 text-[11px] text-muted-foreground/80">
+              {strength.hints.map((hint, idx) => (
+                <li key={idx} className="flex items-center gap-1.5">
+                  <span className="h-1 w-1 rounded-full bg-muted-foreground/60" />
+                  {hint}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </label>
   );
 }
