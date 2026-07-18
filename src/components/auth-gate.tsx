@@ -21,6 +21,8 @@ import {
   UserPlus,
   LogIn,
   Building2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   useDepartment,
