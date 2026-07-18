@@ -450,13 +450,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   placeholder="e.g. SAPS-441982"
                   mono
                 />
-                <FormField
+                <PasswordField
                   label="Password"
-                  icon={Lock}
                   value={password}
                   onChange={setPassword}
                   placeholder="At least 6 characters"
-                  type="password"
+                  showStrength
                 />
                 <label className="flex flex-col gap-y-1.5">
                   <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
