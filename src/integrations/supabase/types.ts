@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          actor_badge: string
+          actor_email: string
+          category: string
+          created_at: string
+          department: string
+          details: Json
+          duration_ms: number | null
+          id: string
+          occurred_at: string
+          summary: string
+        }
+        Insert: {
+          action: string
+          actor_badge?: string
+          actor_email: string
+          category?: string
+          created_at?: string
+          department?: string
+          details?: Json
+          duration_ms?: number | null
+          id?: string
+          occurred_at?: string
+          summary?: string
+        }
+        Update: {
+          action?: string
+          actor_badge?: string
+          actor_email?: string
+          category?: string
+          created_at?: string
+          department?: string
+          details?: Json
+          duration_ms?: number | null
+          id?: string
+          occurred_at?: string
+          summary?: string
+        }
+        Relationships: []
+      }
       jobs_extracted: {
         Row: {
           assigned_technician_id: string | null
@@ -64,6 +106,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      officer_profiles: {
+        Row: {
+          badge: string
+          created_at: string
+          department: string
+          display_name: string
+          email: string
+          has_completed_onboarding: boolean
+          id: string
+          onboarding_completed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          badge?: string
+          created_at?: string
+          department?: string
+          display_name?: string
+          email: string
+          has_completed_onboarding?: boolean
+          id?: string
+          onboarding_completed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          badge?: string
+          created_at?: string
+          department?: string
+          display_name?: string
+          email?: string
+          has_completed_onboarding?: boolean
+          id?: string
+          onboarding_completed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
