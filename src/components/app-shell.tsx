@@ -6,10 +6,12 @@ import {
   History,
   FlaskConical,
   Settings,
+  BarChart3,
   ChevronLeft,
   LogOut,
 } from "lucide-react";
 import { useDemoAuth } from "./auth-gate";
+import { OnboardingTour } from "./onboarding-tour";
 
 type NavItem = {
   to: string;
@@ -20,6 +22,7 @@ type NavItem = {
 const NAV: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/history", label: "Intake History", icon: History },
+  { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/prompt-lab", label: "Prompt Lab", icon: FlaskConical },
   { to: "/settings", label: "Settings & Team", icon: Settings },
 ];
@@ -154,6 +157,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
         {children}
       </main>
+
+      {session && <OnboardingTour />}
 
       {/* Mobile bottom nav */}
       {mobile && (

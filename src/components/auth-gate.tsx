@@ -23,6 +23,8 @@ import {
   Building2,
   Eye,
   EyeOff,
+  CheckCircle2,
+
 } from "lucide-react";
 import {
   useDepartment,
@@ -420,6 +422,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   value={identifier}
                   onChange={setIdentifier}
                   placeholder="master@ava.gov or AVA-001"
+                  help="Use the email you registered with, or your badge ID."
+                  validate={(v) => (v.trim().length < 3 ? "Enter at least 3 characters." : null)}
                 />
                 <PasswordField
                   label="Password"
@@ -442,6 +446,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   onChange={setEmail}
                   placeholder="agent@agency.gov"
                   type="email"
+                  help="Your official agency email. Used to sign in and to identify you in the audit trail."
+                  validate={(v) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? null : "Enter a valid email address.")}
                 />
                 <FormField
                   label="Unique Agent Badge ID"
@@ -450,6 +456,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   onChange={setBadge}
                   placeholder="e.g. SAPS-441982"
                   mono
+                  help="Letters, numbers and dashes only — shown on every document you generate."
+                  validate={(v) =>
+                    /^[A-Za-z0-9-]{4,20}$/.test(v.trim())
+                      ? null
+                      : "4-20 characters, letters, numbers and dashes only."
+                  }
                 />
                 <PasswordField
                   label="Password"
@@ -457,6 +469,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   onChange={setPassword}
                   placeholder="At least 6 characters"
                   showStrength
+                  help="Minimum 6 characters. Meet more of the hints below for a stronger credential."
                 />
                 <label className="flex flex-col gap-y-1.5">
                   <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -477,6 +490,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
                       ))}
                     </select>
                   </div>
+                  <span className="text-[11px] leading-relaxed text-muted-foreground/70">
+                    Determines your themed terminal, incident fields and document branding.
+                  </span>
                 </label>
 
                 {error && <ErrorBanner message={error} />}
@@ -534,6 +550,8 @@ function FormField({
   placeholder,
   type = "text",
   mono,
+  help,
+  validate,
 }: {
   label: string;
   icon: typeof KeyRound;
@@ -542,26 +560,57 @@ function FormField({
   placeholder?: string;
   type?: string;
   mono?: boolean;
+  help?: string;
+  validate?: (v: string) => string | null;
 }) {
+  const [touched, setTouched] = useState(false);
+  const problem = validate ? validate(value) : null;
+  const invalid = touched && value.length > 0 && !!problem;
+  const valid = value.length > 0 && !problem;
+
   return (
     <label className="flex flex-col gap-y-1.5">
       <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
       <div className="group relative">
-        <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+        <Icon
+          className={`pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors ${
+            invalid ? "text-red-400" : "text-muted-foreground group-focus-within:text-primary"
+          }`}
+        />
         <input
           type={type}
           required
           value={value}
+          onBlur={() => setTouched(true)}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className={`w-full rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25 ${mono ? "font-mono tracking-wider" : ""}`}
+          aria-invalid={invalid}
+          className={`w-full rounded-lg border bg-black/30 py-2.5 pl-9 pr-9 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:ring-2 ${
+            invalid
+              ? "border-red-500/60 focus:border-red-500/70 focus:ring-red-500/25"
+              : valid
+                ? "border-emerald-500/40 focus:border-primary/60 focus:ring-primary/25"
+                : "border-white/10 focus:border-primary/60 focus:ring-primary/25"
+          } ${mono ? "font-mono tracking-wider" : ""}`}
         />
+        {valid && (
+          <CheckCircle2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400" />
+        )}
+        {invalid && (
+          <AlertCircle className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-400" />
+        )}
       </div>
+      {invalid ? (
+        <span className="text-[11px] leading-relaxed text-red-300">{problem}</span>
+      ) : help ? (
+        <span className="text-[11px] leading-relaxed text-muted-foreground/70">{help}</span>
+      ) : null}
     </label>
   );
 }
+
 
 function evaluatePasswordStrength(pw: string) {
   const hints: string[] = [];
@@ -583,12 +632,14 @@ function PasswordField({
   onChange,
   placeholder,
   showStrength = false,
+  help,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   showStrength?: boolean;
+  help?: string;
 }) {
   const [visible, setVisible] = useState(false);
   const strength = evaluatePasswordStrength(value);
@@ -617,6 +668,9 @@ function PasswordField({
           {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
+      {help && value.length === 0 && (
+        <span className="text-[11px] leading-relaxed text-muted-foreground/70">{help}</span>
+      )}
       {showStrength && value.length > 0 && (
         <div className="flex flex-col gap-y-1.5">
           <div className="flex h-1.5 gap-1">
