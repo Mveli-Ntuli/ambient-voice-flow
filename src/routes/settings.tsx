@@ -52,6 +52,5 @@ function SettingsPage() {
 
       <SecurityRescanPanel />
     </div>
-    </div>
   );
 }
