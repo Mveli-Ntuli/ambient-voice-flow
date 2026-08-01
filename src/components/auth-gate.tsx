@@ -422,6 +422,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   value={identifier}
                   onChange={setIdentifier}
                   placeholder="master@ava.gov or AVA-001"
+                  help="Use the email you registered with, or your badge ID."
+                  validate={(v) => (v.trim().length < 3 ? "Enter at least 3 characters." : null)}
                 />
                 <PasswordField
                   label="Password"
@@ -444,6 +446,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   onChange={setEmail}
                   placeholder="agent@agency.gov"
                   type="email"
+                  help="Your official agency email. Used to sign in and to identify you in the audit trail."
+                  validate={(v) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? null : "Enter a valid email address.")}
                 />
                 <FormField
                   label="Unique Agent Badge ID"
@@ -452,6 +456,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   onChange={setBadge}
                   placeholder="e.g. SAPS-441982"
                   mono
+                  help="Letters, numbers and dashes only — shown on every document you generate."
+                  validate={(v) =>
+                    /^[A-Za-z0-9-]{4,20}$/.test(v.trim())
+                      ? null
+                      : "4-20 characters, letters, numbers and dashes only."
+                  }
                 />
                 <PasswordField
                   label="Password"
@@ -459,6 +469,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   onChange={setPassword}
                   placeholder="At least 6 characters"
                   showStrength
+                  help="Minimum 6 characters. Meet more of the hints below for a stronger credential."
                 />
                 <label className="flex flex-col gap-y-1.5">
                   <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -479,6 +490,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
                       ))}
                     </select>
                   </div>
+                  <span className="text-[11px] leading-relaxed text-muted-foreground/70">
+                    Determines your themed terminal, incident fields and document branding.
+                  </span>
                 </label>
 
                 {error && <ErrorBanner message={error} />}
@@ -618,12 +632,14 @@ function PasswordField({
   onChange,
   placeholder,
   showStrength = false,
+  help,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   showStrength?: boolean;
+  help?: string;
 }) {
   const [visible, setVisible] = useState(false);
   const strength = evaluatePasswordStrength(value);
@@ -652,6 +668,9 @@ function PasswordField({
           {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
+      {help && value.length === 0 && (
+        <span className="text-[11px] leading-relaxed text-muted-foreground/70">{help}</span>
+      )}
       {showStrength && value.length > 0 && (
         <div className="flex flex-col gap-y-1.5">
           <div className="flex h-1.5 gap-1">
