@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Settings as SettingsIcon, LogOut, User } from "lucide-react";
 import { useDemoAuth } from "@/components/auth-gate";
+import { SecurityRescanPanel } from "@/components/security-rescan";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
