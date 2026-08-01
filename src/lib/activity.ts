@@ -7,7 +7,7 @@ export type LogPayload = {
   action: string;
   category?: string;
   summary?: string;
-  details?: Record<string, unknown>;
+  details?: Record<string, string | number | boolean | null>;
   durationMs?: number;
 };
 

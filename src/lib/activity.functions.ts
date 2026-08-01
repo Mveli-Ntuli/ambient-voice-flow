@@ -8,7 +8,7 @@ const LogInput = z.object({
   action: z.string().min(1).max(120),
   category: z.string().max(60).default("general"),
   summary: z.string().max(600).default(""),
-  details: z.record(z.string(), z.unknown()).optional(),
+  details: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
   durationMs: z.number().int().nonnegative().optional(),
 });
 
@@ -20,7 +20,7 @@ export type ActivityRow = {
   action: string;
   category: string;
   summary: string;
-  details: Record<string, unknown> | null;
+  details: Record<string, string | number | boolean | null> | null;
   duration_ms: number | null;
   occurred_at: string;
 };
