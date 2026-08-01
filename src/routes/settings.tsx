@@ -49,6 +49,9 @@ function SettingsPage() {
           Sign out
         </button>
       </div>
+
+      <SecurityRescanPanel />
+    </div>
     </div>
   );
 }
