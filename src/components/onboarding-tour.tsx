@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   X,
   CheckCircle2,
+  GraduationCap,
 } from "lucide-react";
 import { useDemoAuth } from "./auth-gate";
 import { ensureOfficerProfile, completeOnboarding } from "@/lib/activity.functions";
@@ -36,7 +37,7 @@ const STEPS = [
   {
     icon: BarChart3,
     title: "AI reporting & analytics",
-    body: "Every action you take is logged. Open Analytics for AI-written Daily, Weekly and Monthly reports, officer performance metrics, and the one-click Broadcast Summary.",
+    body: "Every action you take is logged. Open Analytics for AI-written Daily, Weekly and Monthly reports, date-range filters, CSV/PDF exports and the one-click Broadcast Summary.",
     where: "Sidebar · Analytics",
   },
   {
@@ -47,9 +48,30 @@ const STEPS = [
   },
 ];
 
+const progressKey = (email: string) => `ava.onboarding.step.${email.toLowerCase()}`;
+
+function readSavedStep(email: string) {
+  try {
+    const raw = window.localStorage.getItem(progressKey(email));
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) ? Math.min(Math.max(0, n), STEPS.length - 1) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function saveStep(email: string, step: number) {
+  try {
+    window.localStorage.setItem(progressKey(email), String(step));
+  } catch {
+    /* progress persistence is best effort */
+  }
+}
+
 export function OnboardingTour() {
   const { session } = useDemoAuth();
   const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false); // tour started but not finished
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -65,9 +87,15 @@ export function OnboardingTour() {
             displayName: session.fullName,
           },
         });
-        if (!cancelled && !res.hasCompletedOnboarding) {
-          setStep(0);
+        if (cancelled) return;
+        if (!res.hasCompletedOnboarding) {
+          const saved = readSavedStep(session.email);
+          setStep(saved);
+          setPending(true);
           setOpen(true);
+        } else {
+          setPending(false);
+          setOpen(false);
         }
       } catch {
         /* onboarding is non-blocking */
@@ -78,25 +106,60 @@ export function OnboardingTour() {
     };
   }, [session?.email, session?.badge, session?.department, session?.fullName]);
 
-  const finish = async (skipped: boolean) => {
+  // Persist progress so an interrupted tour can resume exactly where it stopped.
+  useEffect(() => {
+    if (open && session?.email) saveStep(session.email, step);
+  }, [open, step, session?.email]);
+
+  const pause = () => {
     setOpen(false);
+    if (!session?.email) return;
+    saveStep(session.email, step);
+    recordActivity({
+      actorEmail: session.email,
+      actorBadge: session.badge,
+      department: session.department,
+      action: "Onboarding paused",
+      category: "onboarding",
+      summary: `Walkthrough paused at step ${step + 1}/${STEPS.length} — can be resumed later`,
+    });
+  };
+
+  const finish = async () => {
+    setOpen(false);
+    setPending(false);
     if (!session?.email) return;
     recordActivity({
       actorEmail: session.email,
       actorBadge: session.badge,
       department: session.department,
-      action: skipped ? "Onboarding skipped" : "Onboarding completed",
+      action: "Onboarding completed",
       category: "onboarding",
-      summary: `Walkthrough ${skipped ? "skipped" : "completed"} at step ${step + 1}/${STEPS.length}`,
+      summary: `Walkthrough completed (${STEPS.length} steps)`,
     });
     try {
       await completeOnboarding({ data: { email: session.email } });
+      saveStep(session.email, 0);
     } catch {
-      /* ignore */
+      /* if the write fails the tour stays resumable on next login */
+      setPending(true);
     }
   };
 
-  if (!open) return null;
+  if (!session?.email || !pending) return null;
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="fixed bottom-24 right-4 z-[90] inline-flex items-center gap-2 rounded-full border border-primary/40 bg-[rgba(15,23,42,0.9)] px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-primary shadow-[0_0_32px_-8px_var(--primary)] backdrop-blur-xl transition hover:brightness-110 sm:bottom-6"
+      >
+        <GraduationCap className="h-4 w-4" />
+        Resume tour · step {step + 1}/{STEPS.length}
+      </button>
+    );
+  }
 
   const current = STEPS[step];
   const Icon = current.icon;
@@ -109,9 +172,9 @@ export function OnboardingTour() {
 
         <button
           type="button"
-          onClick={() => finish(true)}
+          onClick={pause}
           className="absolute right-4 top-4 rounded-full p-1.5 text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
-          aria-label="Skip walkthrough"
+          aria-label="Continue later"
         >
           <X className="h-4 w-4" />
         </button>
@@ -152,20 +215,24 @@ export function OnboardingTour() {
           <div className="flex items-center justify-between gap-3 pt-1">
             <button
               type="button"
-              onClick={() => (step === 0 ? finish(true) : setStep((s) => s - 1))}
+              onClick={() => (step === 0 ? pause() : setStep((s) => s - 1))}
               className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
             >
-              {step === 0 ? "Skip tour" : (<><ArrowLeft className="h-3.5 w-3.5" /> Back</>)}
+              {step === 0 ? "Continue later" : (<><ArrowLeft className="h-3.5 w-3.5" /> Back</>)}
             </button>
             <button
               type="button"
-              onClick={() => (last ? finish(false) : setStep((s) => s + 1))}
+              onClick={() => (last ? void finish() : setStep((s) => s + 1))}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-primary-foreground shadow-[0_0_32px_-8px_var(--primary)] transition hover:brightness-110"
             >
-              {last ? "Start using AVA" : "Next"}
+              {last ? "Finish & start using AVA" : "Next"}
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
+
+          <p className="text-[11px] text-muted-foreground">
+            You can close this at any time — the walkthrough saves your place and reappears until you finish it.
+          </p>
         </div>
       </div>
     </div>
