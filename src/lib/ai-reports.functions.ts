@@ -77,7 +77,9 @@ export const generateOperationsReport = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<ReportResult> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const days = PERIODS[data.period];
-    const since = new Date(Date.now() - days * 86400_000).toISOString();
+    const since = data.from
+      ? new Date(`${data.from}T00:00:00.000Z`).toISOString()
+      : new Date(Date.now() - days * 86400_000).toISOString();
 
     let query = supabaseAdmin
       .from("activity_logs" as never)
@@ -85,7 +87,9 @@ export const generateOperationsReport = createServerFn({ method: "POST" })
       .gte("occurred_at", since)
       .order("occurred_at", { ascending: false })
       .limit(1000);
+    if (data.to) query = query.lte("occurred_at", new Date(`${data.to}T23:59:59.999Z`).toISOString());
     if (data.department) query = query.eq("department", data.department);
+
 
     const { data: raw, error } = await query;
     const rows = (raw ?? []) as unknown as Row[];
