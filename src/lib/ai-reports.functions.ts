@@ -8,7 +8,10 @@ const ReportInput = z.object({
   period: z.enum(["daily", "weekly", "monthly"]),
   department: z.string().max(40).optional(),
   mode: z.enum(["report", "broadcast"]).default("report"),
+  from: z.string().max(40).optional(),
+  to: z.string().max(40).optional(),
 });
+
 
 type Row = {
   actor_email: string;
