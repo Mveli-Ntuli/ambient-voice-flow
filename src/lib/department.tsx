@@ -9,7 +9,12 @@ export type DepartmentField = {
   type: "text" | "toggle" | "select" | "number";
   options?: string[];
   placeholder?: string;
+  /** Required fields block a clean export until they are filled in. */
+  required?: boolean;
+  /** Short helper text shown under the field. */
+  help?: string;
 };
+
 
 export type SimulatedCall = {
   transcript: string;
