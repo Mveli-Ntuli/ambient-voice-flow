@@ -60,12 +60,12 @@ export const DEPARTMENTS: Record<DepartmentKey, DepartmentConfig> = {
     docTitle: "Official Case Incident Docket",
     docPrefix: "SAPS",
     fields: [
-      { key: "suspect", label: "Suspect Description", type: "text", placeholder: "Height, clothing, distinguishing marks…" },
-      { key: "weapons", label: "Weapons Present", type: "toggle" },
-      { key: "vehicleMake", label: "Vehicle Make/Model", type: "text", placeholder: "e.g. Toyota Hilux (white)" },
-      { key: "vehiclePlate", label: "Registration Plate", type: "text", placeholder: "e.g. CA 123 456" },
-      { key: "caseCategory", label: "Case File Category", type: "select", options: ["Armed Robbery", "Assault", "Burglary", "Domestic Violence", "Motor Vehicle Theft", "Other"] },
-      { key: "location", label: "Incident Location", type: "text", placeholder: "Street, suburb" },
+      { key: "suspect", label: "Suspect Description", type: "text", placeholder: "Height, clothing, distinguishing marks…", required: true, help: "Height, build, clothing and any distinguishing marks." },
+      { key: "weapons", label: "Weapons Present", type: "toggle", required: true, help: "Answer Yes or No — responding units cannot be dispatched without it." },
+      { key: "vehicleMake", label: "Vehicle Make/Model", type: "text", placeholder: "e.g. Toyota Hilux (white)", help: "Optional — leave blank if no vehicle was involved." },
+      { key: "vehiclePlate", label: "Registration Plate", type: "text", placeholder: "e.g. CA 123 456", help: "Optional — include the province code where audible." },
+      { key: "caseCategory", label: "Case File Category", type: "select", options: ["Armed Robbery", "Assault", "Burglary", "Domestic Violence", "Motor Vehicle Theft", "Other"], required: true, help: "Choose the closest category — it drives the docket numbering." },
+      { key: "location", label: "Incident Location", type: "text", placeholder: "Street, suburb", required: true, help: "Street number, street name and suburb." },
     ],
     simulated: {
       transcript:
@@ -97,12 +97,12 @@ export const DEPARTMENTS: Record<DepartmentKey, DepartmentConfig> = {
     docTitle: "Structural Fire & HAZMAT Dispatch Sheet",
     docPrefix: "FRS",
     fields: [
-      { key: "structure", label: "Structure Type", type: "select", options: ["Residential", "Commercial", "Industrial", "Vehicle", "Wildland"] },
-      { key: "hazmat", label: "HAZMAT Risk Level", type: "select", options: ["None", "Low", "Moderate", "High", "Critical"] },
-      { key: "waterSource", label: "Water Source / Hydrant Distance", type: "text", placeholder: "e.g. Hydrant 40m NW" },
-      { key: "entrapped", label: "Entrapped Persons", type: "number", placeholder: "0" },
-      { key: "utilities", label: "Utility Isolation Required", type: "toggle" },
-      { key: "location", label: "Scene Address", type: "text", placeholder: "Street, suburb" },
+      { key: "structure", label: "Structure Type", type: "select", options: ["Residential", "Commercial", "Industrial", "Vehicle", "Wildland"], required: true, help: "Determines the appliance and crew assignment." },
+      { key: "hazmat", label: "HAZMAT Risk Level", type: "select", options: ["None", "Low", "Moderate", "High", "Critical"], required: true, help: "Select None explicitly if no hazardous materials are present." },
+      { key: "waterSource", label: "Water Source / Hydrant Distance", type: "text", placeholder: "e.g. Hydrant 40m NW", help: "Optional — approximate distance and direction is enough." },
+      { key: "entrapped", label: "Entrapped Persons", type: "number", placeholder: "0", required: true, help: "Enter 0 if nobody is trapped — never leave this blank." },
+      { key: "utilities", label: "Utility Isolation Required", type: "toggle", help: "Optional — set Yes if gas or electrical isolation is needed." },
+      { key: "location", label: "Scene Address", type: "text", placeholder: "Street, suburb", required: true, help: "Street number, street name and suburb." },
     ],
     simulated: {
       transcript:
@@ -134,12 +134,12 @@ export const DEPARTMENTS: Record<DepartmentKey, DepartmentConfig> = {
     docTitle: "EMS Triage & Patient Report Form",
     docPrefix: "EMS",
     fields: [
-      { key: "patientAge", label: "Patient Age", type: "number", placeholder: "e.g. 58" },
-      { key: "patientGender", label: "Gender", type: "select", options: ["Male", "Female", "Other", "Unknown"] },
-      { key: "consciousness", label: "Level of Consciousness", type: "select", options: ["Alert", "Voice-responsive", "Pain-responsive", "Unresponsive"] },
-      { key: "symptoms", label: "Primary Symptoms", type: "text", placeholder: "Chest pain, shortness of breath…" },
-      { key: "history", label: "Pre-existing Conditions", type: "text", placeholder: "Hypertension, diabetes…" },
-      { key: "triage", label: "Triage Level", type: "select", options: ["Red (Critical)", "Orange (Urgent)", "Green (Stable)"] },
+      { key: "patientAge", label: "Patient Age", type: "number", placeholder: "e.g. 58", required: true, help: "Estimate in years if the caller is unsure." },
+      { key: "patientGender", label: "Gender", type: "select", options: ["Male", "Female", "Other", "Unknown"], required: true, help: "Select Unknown rather than leaving it blank." },
+      { key: "consciousness", label: "Level of Consciousness", type: "select", options: ["Alert", "Voice-responsive", "Pain-responsive", "Unresponsive"], required: true, help: "AVPU scale — asked on every medical call." },
+      { key: "symptoms", label: "Primary Symptoms", type: "text", placeholder: "Chest pain, shortness of breath…", required: true, help: "The caller\u2019s own words are preferred." },
+      { key: "history", label: "Pre-existing Conditions", type: "text", placeholder: "Hypertension, diabetes…", help: "Optional — include known medication where mentioned." },
+      { key: "triage", label: "Triage Level", type: "select", options: ["Red (Critical)", "Orange (Urgent)", "Green (Stable)"], required: true, help: "Sets crew priority — confirm before exporting." },
     ],
     simulated: {
       transcript:
