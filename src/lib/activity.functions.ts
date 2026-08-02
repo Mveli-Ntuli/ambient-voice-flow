@@ -47,24 +47,30 @@ const ListInput = z.object({
   department: z.string().max(40).optional(),
   days: z.number().int().min(1).max(365).default(30),
   limit: z.number().int().min(1).max(500).default(200),
+  from: z.string().max(40).optional(),
+  to: z.string().max(40).optional(),
 });
 
 export const listActivity = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ListInput.parse(input ?? {}))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const since = new Date(Date.now() - data.days * 86400_000).toISOString();
+    const since = data.from
+      ? new Date(`${data.from}T00:00:00.000Z`).toISOString()
+      : new Date(Date.now() - data.days * 86400_000).toISOString();
     let query = supabaseAdmin
       .from("activity_logs" as never)
       .select("*")
       .gte("occurred_at", since)
       .order("occurred_at", { ascending: false })
       .limit(data.limit);
+    if (data.to) query = query.lte("occurred_at", new Date(`${data.to}T23:59:59.999Z`).toISOString());
     if (data.department) query = query.eq("department", data.department);
     const { data: rows, error } = await query;
     if (error) return { rows: [] as ActivityRow[], error: error.message };
     return { rows: (rows ?? []) as unknown as ActivityRow[], error: null as string | null };
   });
+
 
 const ProfileInput = z.object({
   email: z.string().min(1).max(200),

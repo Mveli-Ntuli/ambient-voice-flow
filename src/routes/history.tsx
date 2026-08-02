@@ -24,13 +24,17 @@ function HistoryPage() {
         </div>
       </header>
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl">
-        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 focus-within:border-primary/60">
           <Search className="h-4 w-4 text-muted-foreground" />
           <input
             placeholder="Ask AI: 'Find all water issues this month...'"
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
           />
         </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Search in plain language — include a time frame (e.g. “this week”) and a keyword for the best results.
+        </p>
+
         <p className="mt-8 text-center text-sm text-muted-foreground">
           No intakes yet — records will appear here once you export a job card.
         </p>

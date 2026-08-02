@@ -2,10 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Mic, MicOff, Radio, Sparkles, Download, PlayCircle,
-  Shield, AlertTriangle, MapPin, FileText, Loader2, CheckCircle2,
+  Shield, AlertTriangle, MapPin, FileText, Loader2, CheckCircle2, AlertCircle,
 } from "lucide-react";
 import jsPDF from "jspdf";
+import { toast } from "sonner";
 import { useDepartment, DEPARTMENTS, type DepartmentConfig, type DepartmentField } from "@/lib/department";
+import { useDemoAuth } from "@/components/auth-gate";
+import { recordActivity } from "@/lib/activity";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -96,6 +99,20 @@ function DispatchPortal() {
 function DispatchWorkspace({ dep }: { dep: DepartmentConfig }) {
   const accent = dep.theme.accentHex;
   const Icon = dep.icon;
+  const { session } = useDemoAuth();
+
+  const log = (action: string, category: string, summary: string, durationMs?: number) => {
+    if (!session?.email) return;
+    recordActivity({
+      actorEmail: session.email,
+      actorBadge: session.badge,
+      department: session.department,
+      action,
+      category,
+      summary,
+      durationMs,
+    });
+  };
 
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -103,6 +120,9 @@ function DispatchWorkspace({ dep }: { dep: DepartmentConfig }) {
   const [manual, setManual] = useState<Extracted>({});
   const [simulating, setSimulating] = useState(false);
   const [exportState, setExportState] = useState<"idle" | "generating" | "done">("idle");
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const recordStartRef = useRef<number | null>(null);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -120,6 +140,8 @@ function DispatchWorkspace({ dep }: { dep: DepartmentConfig }) {
     setExtracted({});
     setManual({});
     setExportState("idle");
+    setTouched({});
+    setSubmitAttempted(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dep.key]);
 
@@ -189,15 +211,29 @@ function DispatchWorkspace({ dep }: { dep: DepartmentConfig }) {
       source.connect(analyser);
       analyserRef.current = analyser;
       setRecording(true);
+      recordStartRef.current = Date.now();
+      log("Call recording started", "capture", `${dep.agency} live microphone capture opened`);
       requestAnimationFrame(startWaveform);
     } catch {
       // Fallback: just enable simulated waveform-like animation would be nice, but we'll surface a hint
       setRecording(true);
+      recordStartRef.current = Date.now();
+      log("Call recording failed", "capture", "Microphone permission denied or unavailable");
       setTranscript("[Microphone unavailable — click 'Simulate Department Call' to preview the flow.]");
     }
   }
 
   function stopRecording() {
+    if (recordStartRef.current) {
+      const duration = Date.now() - recordStartRef.current;
+      recordStartRef.current = null;
+      log(
+        "Call recording stopped",
+        "capture",
+        `${Math.round(duration / 1000)}s captured · ${Object.keys(extracted).length} fields auto-extracted`,
+        duration,
+      );
+    }
     setRecording(false);
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
@@ -222,6 +258,7 @@ function DispatchWorkspace({ dep }: { dep: DepartmentConfig }) {
     setExtracted({});
     setManual({});
     setSimulating(true);
+    log("Simulated call started", "capture", `${dep.name} training scenario replayed`);
     const full = dep.simulated.transcript;
     let i = 0;
     const step = 25;
@@ -233,6 +270,11 @@ function DispatchWorkspace({ dep }: { dep: DepartmentConfig }) {
         window.clearInterval(simTimerRef.current!);
         simTimerRef.current = null;
         setSimulating(false);
+        log(
+          "Fields auto-extracted",
+          "extraction",
+          `${Object.keys(extractFromTranscript(dep, full)).length} of ${dep.fields.length} ${dep.name} fields populated from the transcript`,
+        );
       }
     }, step);
   }
@@ -245,9 +287,25 @@ function DispatchWorkspace({ dep }: { dep: DepartmentConfig }) {
 
   function updateField(key: string, value: string) {
     setManual((prev) => ({ ...prev, [key]: value }));
+    setTouched((prev) => ({ ...prev, [key]: true }));
   }
 
+  const missingFields = useMemo(
+    () => dep.fields.filter((f) => f.required && !(merged[f.key] ?? "").trim()),
+    [dep.fields, merged],
+  );
+
   async function exportPdf() {
+    setSubmitAttempted(true);
+    if (missingFields.length > 0) {
+      toast.error(
+        `${missingFields.length} required field${missingFields.length > 1 ? "s" : ""} still missing: ${missingFields
+          .map((f) => f.label)
+          .join(", ")}`,
+      );
+      log("Export blocked by validation", "validation", `Missing: ${missingFields.map((f) => f.label).join(", ")}`);
+      return;
+    }
     setExportState("generating");
     try {
       await new Promise((r) => setTimeout(r, 400));
@@ -332,6 +390,8 @@ function DispatchWorkspace({ dep }: { dep: DepartmentConfig }) {
       doc.rect(0, doc.internal.pageSize.getHeight() - 6, pageW, 6, "F");
 
       doc.save(`${docNo}.pdf`);
+      log("Secure PDF exported", "export", `${dep.docTitle} · Docket ${docNo}`);
+      toast.success(`Docket ${docNo} downloaded.`);
       setExportState("done");
       setTimeout(() => setExportState("idle"), 2200);
     } catch (e) {
@@ -459,6 +519,23 @@ function DispatchWorkspace({ dep }: { dep: DepartmentConfig }) {
                 {dep.name} Intake Fields
               </h2>
             </div>
+            {missingFields.length > 0 ? (
+              <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  <strong className="font-semibold">
+                    {missingFields.length} required field{missingFields.length > 1 ? "s" : ""} still needed:
+                  </strong>{" "}
+                  {missingFields.map((f) => f.label).join(", ")}. Fill these in (or capture more of the call) before
+                  exporting the docket.
+                </span>
+              </div>
+            ) : (
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-xs text-emerald-200">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                All required fields are complete — this docket is ready to export.
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {dep.fields.map((f) => (
                 <FieldInput
@@ -467,6 +544,12 @@ function DispatchWorkspace({ dep }: { dep: DepartmentConfig }) {
                   value={merged[f.key] || ""}
                   extractedHit={!!extracted[f.key]}
                   accent={accent}
+                  invalid={
+                    !!f.required &&
+                    !(merged[f.key] ?? "").trim() &&
+                    (submitAttempted || !!touched[f.key])
+                  }
+                  onBlur={() => setTouched((prev) => ({ ...prev, [f.key]: true }))}
                   onChange={(v) => updateField(f.key, v)}
                 />
               ))}
@@ -504,19 +587,30 @@ function FieldInput({
   field,
   value,
   onChange,
+  onBlur,
   extractedHit,
   accent,
+  invalid,
 }: {
   field: DepartmentField;
   value: string;
   onChange: (v: string) => void;
+  onBlur?: () => void;
   extractedHit: boolean;
   accent: string;
+  invalid?: boolean;
 }) {
+  const filled = !!value.trim();
+  const border = invalid
+    ? "border-amber-500/60 focus:border-amber-400"
+    : filled
+      ? "border-emerald-500/40 focus:border-emerald-400/70"
+      : "border-white/10 focus:border-primary/60";
   return (
     <label className="flex flex-col gap-y-1.5">
       <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
         {field.label}
+        {field.required && <span className="text-amber-300" aria-hidden>*</span>}
         {extractedHit && (
           <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold normal-case tracking-normal" style={{ background: `${accent}22`, color: accent }}>
             <Sparkles className="h-2.5 w-2.5" /> auto
@@ -527,7 +621,9 @@ function FieldInput({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
+          onBlur={onBlur}
+          aria-invalid={invalid}
+          className={`rounded-lg border bg-black/30 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/25 ${border}`}
         >
           <option value="">Select…</option>
           {field.options?.map((o) => (
@@ -535,13 +631,13 @@ function FieldInput({
           ))}
         </select>
       ) : field.type === "toggle" ? (
-        <div className="flex gap-2">
+        <div className="flex gap-2" onBlur={onBlur}>
           {["Yes", "No"].map((v) => (
             <button
               key={v}
               type="button"
               onClick={() => onChange(v)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${value === v ? "text-white" : "text-muted-foreground hover:text-foreground border-white/10 bg-black/20"}`}
+              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold transition ${value === v ? "text-white" : `text-muted-foreground hover:text-foreground bg-black/20 ${invalid ? "border-amber-500/60" : "border-white/10"}`}`}
               style={value === v ? { background: accent, borderColor: accent } : undefined}
             >
               {v}
@@ -553,10 +649,20 @@ function FieldInput({
           type={field.type === "number" ? "number" : "text"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          aria-invalid={invalid}
           placeholder={field.placeholder}
-          className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-muted-foreground/60 focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
+          className={`rounded-lg border bg-black/30 px-3 py-2 text-sm outline-none placeholder:text-muted-foreground/60 focus:ring-2 focus:ring-primary/25 ${border}`}
         />
       )}
+      {invalid ? (
+        <span className="flex items-center gap-1.5 text-[11px] text-amber-300">
+          <AlertCircle className="h-3 w-3" />
+          {field.label} is required — {field.help ?? "please complete this field."}
+        </span>
+      ) : field.help ? (
+        <span className="text-[11px] text-muted-foreground">{field.help}</span>
+      ) : null}
     </label>
   );
 }
