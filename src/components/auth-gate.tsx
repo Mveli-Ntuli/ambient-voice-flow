@@ -74,6 +74,7 @@ type UserRecord = {
   badge: string;
   passwordHash: string;
   department: DepartmentKey;
+  role?: AgentRole;
   createdAt: number;
 };
 
@@ -90,11 +91,13 @@ async function seedIfEmpty() {
       badge: "AVA-001",
       passwordHash: await hashPassword(MASTER_SEED_PLAINTEXT),
       department: "police",
+      role: "commander",
       createdAt: Date.now(),
     };
     window.localStorage.setItem(USERS_KEY, JSON.stringify([master]));
   } catch {}
 }
+
 function readUsers(): UserRecord[] {
   try {
     const raw = window.localStorage.getItem(USERS_KEY);
