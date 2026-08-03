@@ -511,6 +511,29 @@ export function AuthGate({ children }: { children: ReactNode }) {
                     Determines your themed terminal, incident fields and document branding.
                   </span>
                 </label>
+                <label className="flex flex-col gap-y-1.5">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Clearance level
+                  </span>
+                  <div className="group relative">
+                    <Shield className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                    <select
+                      required
+                      value={regRole}
+                      onChange={(e) => setRegRole(e.target.value as AgentRole)}
+                      className="w-full appearance-none rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
+                    >
+                      {ROLE_ORDER.map((r) => (
+                        <option key={r} value={r} className="bg-slate-900">
+                          {ROLE_LABELS[r]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <span className="text-[11px] leading-relaxed text-muted-foreground/70">
+                    {ROLE_HELP[regRole]}
+                  </span>
+                </label>
 
                 {error && <ErrorBanner message={error} />}
 
