@@ -38,9 +38,12 @@ export const Route = createFileRoute("/analytics")({
         content: "AI operations reports, officer performance metrics and a verified activity trail.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://ambient-voice-flow.lovable.app/analytics" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://ambient-voice-flow.lovable.app/analytics" }],
   }),
+
   component: AnalyticsPage,
 });
 
