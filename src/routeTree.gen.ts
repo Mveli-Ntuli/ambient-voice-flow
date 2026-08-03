@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReceptionRouteImport } from './routes/reception'
 import { Route as PromptLabRouteImport } from './routes/prompt-lab'
@@ -16,6 +17,11 @@ import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/prompt-lab': typeof PromptLabRoute
   '/reception': typeof ReceptionRoute
   '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/prompt-lab': typeof PromptLabRoute
   '/reception': typeof ReceptionRoute
   '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/prompt-lab': typeof PromptLabRoute
   '/reception': typeof ReceptionRoute
   '/settings': typeof SettingsRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +90,7 @@ export interface FileRouteTypes {
     | '/prompt-lab'
     | '/reception'
     | '/settings'
+    | '/sitemap.xml'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/prompt-lab'
     | '/reception'
     | '/settings'
+    | '/sitemap.xml'
   id:
     | '__root__'
     | '/'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/prompt-lab'
     | '/reception'
     | '/settings'
+    | '/sitemap.xml'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,10 +118,18 @@ export interface RootRouteChildren {
   PromptLabRoute: typeof PromptLabRoute
   ReceptionRoute: typeof ReceptionRoute
   SettingsRoute: typeof SettingsRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -162,7 +182,18 @@ const rootRouteChildren: RootRouteChildren = {
   PromptLabRoute: PromptLabRoute,
   ReceptionRoute: ReceptionRoute,
   SettingsRoute: SettingsRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
