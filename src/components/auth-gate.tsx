@@ -176,7 +176,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     badge: u.badge,
     email: u.email,
     department: u.department,
+    role: normaliseRole(u.role),
     loggedInAt: Date.now(),
+
     fullName: `Agent ${u.badge}`,
     refCode: u.badge,
     room: u.badge,
