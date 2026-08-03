@@ -5,9 +5,14 @@ export const Route = createFileRoute("/history")({
   head: () => ({
     meta: [
       { title: "Intake History — Zero-Form AVA" },
-      { name: "description", content: "Review previously generated job cards and voice intakes." },
+      { name: "description", content: "Search past voice intakes and generated job cards in plain language, filtered by time frame, department and keyword." },
+      { property: "og:title", content: "Intake History — Zero-Form AVA" },
+      { property: "og:description", content: "Search past voice intakes and generated job cards in plain language, by time frame, department and keyword." },
+      { property: "og:url", content: "https://ambient-voice-flow.lovable.app/history" },
     ],
+    links: [{ rel: "canonical", href: "https://ambient-voice-flow.lovable.app/history" }],
   }),
+
   component: HistoryPage,
 });
 
