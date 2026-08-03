@@ -8,9 +8,14 @@ export const Route = createFileRoute("/reception")({
   head: () => ({
     meta: [
       { title: "Reception Desk Portal — Zero-Form AVA" },
-      { name: "description", content: "Administrative portal for provisioning resident placements and reference codes." },
+      { name: "description", content: "Provision resident placements and issue unique reference codes so front-desk staff can onboard new arrivals into AVA in seconds." },
+      { property: "og:title", content: "Reception Desk Portal — Zero-Form AVA" },
+      { property: "og:description", content: "Provision resident placements and issue unique reference codes for front-desk onboarding in AVA." },
+      { property: "og:url", content: "https://ambient-voice-flow.lovable.app/reception" },
     ],
+    links: [{ rel: "canonical", href: "https://ambient-voice-flow.lovable.app/reception" }],
   }),
+
   component: Reception,
 });
 
