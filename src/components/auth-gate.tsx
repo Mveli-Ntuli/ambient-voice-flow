@@ -33,6 +33,8 @@ import {
   type DepartmentKey,
 } from "@/lib/department";
 import { DepartmentLanding } from "@/components/department-landing";
+import { normaliseRole, ROLE_HELP, ROLE_LABELS, ROLE_ORDER, type AgentRole } from "@/lib/rbac";
+
 
 const USERS_KEY = "ava_users_db";
 const SESSION_KEY = "ava_current_session";
