@@ -36,7 +36,7 @@ function PromptLabPage() {
         {MODES.map((m) => (
           <div key={m} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-display font-semibold">{m} Mode</h3>
+              <h2 className="font-display font-semibold">{m} Mode</h2>
               <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-primary">
                 Active
               </span>
