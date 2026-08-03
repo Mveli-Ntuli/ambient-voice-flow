@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ambient-voice-flow.lovable.app/sitemap.xml

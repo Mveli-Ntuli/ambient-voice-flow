@@ -13,10 +13,15 @@ import { recordActivity } from "@/lib/activity";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dispatch Portal — Zero-Form AVA" },
-      { name: "description", content: "Government Dispatch command terminal. Ambient voice, live transcription and department-specific incident documents." },
+      { title: "Live Dispatch Terminal — Zero-Form AVA" },
+      { name: "description", content: "Record an incident by voice and watch AVA extract, verify and document it — no forms, no typing, for police, fire and health dispatch." },
+      { property: "og:title", content: "Live Dispatch Terminal — Zero-Form AVA" },
+      { property: "og:description", content: "Record an incident by voice and watch AVA extract, verify and document it — no forms, no typing, for police, fire and health dispatch." },
+      { property: "og:url", content: "https://ambient-voice-flow.lovable.app/" },
     ],
+    links: [{ rel: "canonical", href: "https://ambient-voice-flow.lovable.app/" }],
   }),
+
   component: DispatchPortal,
 });
 

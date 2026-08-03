@@ -7,9 +7,14 @@ export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
       { title: "Settings & Team — Zero-Form AVA" },
-      { name: "description", content: "Workspace, team, and integration settings." },
+      { name: "description", content: "Manage your AVA workspace: agent accounts, department assignments, duty status and the security posture of your dispatch records." },
+      { property: "og:title", content: "Settings & Team — Zero-Form AVA" },
+      { property: "og:description", content: "Manage agent accounts, department assignments and the security posture of your AVA dispatch workspace." },
+      { property: "og:url", content: "https://ambient-voice-flow.lovable.app/settings" },
     ],
+    links: [{ rel: "canonical", href: "https://ambient-voice-flow.lovable.app/settings" }],
   }),
+
   component: SettingsPage,
 });
 
