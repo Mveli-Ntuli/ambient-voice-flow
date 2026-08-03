@@ -204,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       writeSession(s);
       setSession(s);
     },
-    register: async ({ email, badge, password, department }) => {
+    register: async ({ email, badge, password, department, role }) => {
       const e = email.trim().toLowerCase();
       const b = badge.trim().toUpperCase();
       if (!e || !b || !password) throw new Error("All fields are required.");
@@ -220,10 +220,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         badge: b,
         passwordHash: await hashPassword(password),
         department,
+        role: role ?? "officer",
         createdAt: Date.now(),
       };
       writeUsers([...users, rec]);
     },
+
     signOut: () => {
       try { window.localStorage.removeItem(SESSION_KEY); } catch {}
       setSession(null);
