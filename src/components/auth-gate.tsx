@@ -146,7 +146,13 @@ type AuthContextValue = {
   authed: boolean;
   session: Session | null;
   login: (input: { identifier: string; password: string }) => Promise<void>;
-  register: (input: { email: string; badge: string; password: string; department: DepartmentKey }) => Promise<void>;
+  register: (input: {
+    email: string;
+    badge: string;
+    password: string;
+    department: DepartmentKey;
+    role?: AgentRole;
+  }) => Promise<void>;
   signOut: () => void;
   // Legacy stubs
   signIn: (input: { badge: string; password: string; station: string }) => Promise<void>;
