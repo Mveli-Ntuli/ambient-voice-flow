@@ -266,6 +266,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [badge, setBadge] = useState("");
   const [password, setPassword] = useState("");
   const [regDept, setRegDept] = useState<DepartmentKey>("police");
+  const [regRole, setRegRole] = useState<AgentRole>("officer");
   const [loading, setLoading] = useState(false);
   const [entered, setEntered] = useState(false);
   const [error, setError] = useState<string | null>(null);
