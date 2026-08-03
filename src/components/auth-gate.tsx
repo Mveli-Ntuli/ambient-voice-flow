@@ -116,7 +116,9 @@ type Session = {
   badge: string;
   email: string;
   department: DepartmentKey;
+  role: AgentRole;
   loggedInAt: number;
+
   // legacy compat (used by dashboard code)
   fullName: string;
   refCode: string;
