@@ -33,6 +33,8 @@ import {
   type DepartmentKey,
 } from "@/lib/department";
 import { DepartmentLanding } from "@/components/department-landing";
+import { normaliseRole, ROLE_HELP, ROLE_LABELS, ROLE_ORDER, type AgentRole } from "@/lib/rbac";
+
 
 const USERS_KEY = "ava_users_db";
 const SESSION_KEY = "ava_current_session";
@@ -74,6 +76,7 @@ type UserRecord = {
   badge: string;
   passwordHash: string;
   department: DepartmentKey;
+  role?: AgentRole;
   createdAt: number;
 };
 
@@ -90,11 +93,13 @@ async function seedIfEmpty() {
       badge: "AVA-001",
       passwordHash: await hashPassword(MASTER_SEED_PLAINTEXT),
       department: "police",
+      role: "commander",
       createdAt: Date.now(),
     };
     window.localStorage.setItem(USERS_KEY, JSON.stringify([master]));
   } catch {}
 }
+
 function readUsers(): UserRecord[] {
   try {
     const raw = window.localStorage.getItem(USERS_KEY);
@@ -111,7 +116,9 @@ type Session = {
   badge: string;
   email: string;
   department: DepartmentKey;
+  role: AgentRole;
   loggedInAt: number;
+
   // legacy compat (used by dashboard code)
   fullName: string;
   refCode: string;
@@ -139,7 +146,13 @@ type AuthContextValue = {
   authed: boolean;
   session: Session | null;
   login: (input: { identifier: string; password: string }) => Promise<void>;
-  register: (input: { email: string; badge: string; password: string; department: DepartmentKey }) => Promise<void>;
+  register: (input: {
+    email: string;
+    badge: string;
+    password: string;
+    department: DepartmentKey;
+    role?: AgentRole;
+  }) => Promise<void>;
   signOut: () => void;
   // Legacy stubs
   signIn: (input: { badge: string; password: string; station: string }) => Promise<void>;
@@ -169,7 +182,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     badge: u.badge,
     email: u.email,
     department: u.department,
+    role: normaliseRole(u.role),
     loggedInAt: Date.now(),
+
     fullName: `Agent ${u.badge}`,
     refCode: u.badge,
     room: u.badge,
@@ -195,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       writeSession(s);
       setSession(s);
     },
-    register: async ({ email, badge, password, department }) => {
+    register: async ({ email, badge, password, department, role }) => {
       const e = email.trim().toLowerCase();
       const b = badge.trim().toUpperCase();
       if (!e || !b || !password) throw new Error("All fields are required.");
@@ -211,10 +226,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         badge: b,
         passwordHash: await hashPassword(password),
         department,
+        role: role ?? "officer",
         createdAt: Date.now(),
       };
       writeUsers([...users, rec]);
     },
+
     signOut: () => {
       try { window.localStorage.removeItem(SESSION_KEY); } catch {}
       setSession(null);
@@ -249,6 +266,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [badge, setBadge] = useState("");
   const [password, setPassword] = useState("");
   const [regDept, setRegDept] = useState<DepartmentKey>("police");
+  const [regRole, setRegRole] = useState<AgentRole>("officer");
   const [loading, setLoading] = useState(false);
   const [entered, setEntered] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -492,6 +510,29 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   </div>
                   <span className="text-[11px] leading-relaxed text-muted-foreground/70">
                     Determines your themed terminal, incident fields and document branding.
+                  </span>
+                </label>
+                <label className="flex flex-col gap-y-1.5">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Clearance level
+                  </span>
+                  <div className="group relative">
+                    <Shield className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                    <select
+                      required
+                      value={regRole}
+                      onChange={(e) => setRegRole(e.target.value as AgentRole)}
+                      className="w-full appearance-none rounded-lg border border-white/10 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:border-primary/60 focus:ring-2 focus:ring-primary/25"
+                    >
+                      {ROLE_ORDER.map((r) => (
+                        <option key={r} value={r} className="bg-slate-900">
+                          {ROLE_LABELS[r]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <span className="text-[11px] leading-relaxed text-muted-foreground/70">
+                    {ROLE_HELP[regRole]}
                   </span>
                 </label>
 
