@@ -16,6 +16,8 @@ import { AppShell } from "../components/app-shell";
 import { DepartmentProvider } from "../lib/department";
 import { Toaster } from "../components/ui/sonner";
 
+const SITE_URL = "https://ambient-voice-flow.lovable.app";
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
