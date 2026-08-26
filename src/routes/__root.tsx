@@ -107,6 +107,30 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: "Zero-Form AVA",
+          url: SITE_URL,
+          description:
+            "Ambient voice dispatch platform for police, fire and health agencies — voice-first incident intake with no forms.",
+          logo: `${SITE_URL}/icons/icon-512x512.png`,
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "Zero-Form AVA",
+          url: SITE_URL,
+          publisher: { "@type": "Organization", name: "Zero-Form AVA", url: SITE_URL },
+        }),
+      },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
