@@ -64,7 +64,7 @@ function constants(src) {
 
 function value(input, consts) {
   if (!input) return null;
-  const raw = input.trim();
+  const raw = input.trim().replace(/[,\s}\])]+$/, "");
   const literal = raw.match(/^[`"'](.*)[`"']$/s);
   if (literal) return literal[1];
   const ident = raw.trim().match(/^([A-Za-z0-9_$]+)$/);
@@ -94,7 +94,7 @@ for (const file of files) {
   }
 
   const consts = constants(src);
-  const title = value(firstMatch(src, /\{\s*title:\s*([^,\n}]+)/), consts);
+  const title = value(firstMatch(src, /\{\s*title:\s*(.+)$/m), consts);
   if (!title) add("title", "missing title in head() meta");
   else {
     if (title.length > 60) add("title", `title is ${title.length} chars (max 60)`);
@@ -104,7 +104,7 @@ for (const file of files) {
   }
 
   const desc = value(
-    firstMatch(src, /name:\s*"description",\s*content:\s*([^,\n}]+)/),
+    firstMatch(src, /name:\s*"description",\s*content:\s*(.+)$/m),
     consts,
   );
   if (!desc) add("description", "missing meta description");
@@ -121,7 +121,7 @@ for (const file of files) {
   }
 
   const canonical = value(
-    firstMatch(src, /rel:\s*"canonical",\s*href:\s*([^,\n}\]]+)/),
+    firstMatch(src, /rel:\s*"canonical",\s*href:\s*(.+)$/m),
     consts,
   );
   if (!canonical) add("canonical", "missing self-referencing canonical link");
