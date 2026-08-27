@@ -9,6 +9,10 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "seo:check": "node scripts/seo-check.mjs",
+    "seo:check:strict": "node scripts/seo-check.mjs --strict",
+    "seo:baseline": "node scripts/seo-check.mjs --update",
+    "postbuild": "node scripts/seo-check.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {

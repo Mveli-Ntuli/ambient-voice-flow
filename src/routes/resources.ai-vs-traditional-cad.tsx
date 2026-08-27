@@ -2,9 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Cpu, ClipboardList, Clock, ShieldCheck } from "lucide-react";
 
 const URL = "https://ambient-voice-flow.lovable.app/resources/ai-vs-traditional-cad";
-const TITLE = "AI-Enhanced CAD vs Traditional Computer-Aided Dispatch";
+const TITLE = "AI-Enhanced CAD vs Traditional Dispatch";
 const DESCRIPTION =
-  "How AI-enhanced computer-aided dispatch compares to traditional CAD systems: call intake speed, transcription accuracy, data quality, auditability and cost for police, fire and EMS.";
+  "How AI-enhanced computer-aided dispatch compares to traditional CAD: intake speed, data quality, auditability and cost for police, fire and EMS.";
 const PUBLISHED = "2026-08-27";
 
 export const Route = createFileRoute("/resources/ai-vs-traditional-cad")({

@@ -84,6 +84,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Dispatch Portal — Zero-Form AVA" },
+      { name: "google-site-verification", content: "uyc7ANSWekeAcHwLtSAs1Wh41P-upaG0aBdmmmDQec0" },
       { name: "description", content: "Government Dispatch command terminal. Ambient voice, live transcription and department-specific incident documents." },
       { name: "author", content: "Zero-Form AVA" },
       { property: "og:title", content: "Dispatch Portal — Zero-Form AVA" },
