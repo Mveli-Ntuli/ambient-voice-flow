@@ -49,6 +49,32 @@ function firstMatch(src, re) {
   return m ? m[1] : null;
 }
 
+/** Resolves top-level `const NAME = "value";` string constants so head() entries
+ * written as `content: DESCRIPTION` can still be audited. */
+function constants(src) {
+  const map = new Map();
+  for (const m of src.matchAll(/^const\s+([A-Z0-9_]+)\s*=\s*[`"']([^`"']+)[`"'];/gm)) {
+    map.set(m[1], m[2]);
+  }
+  for (const m of src.matchAll(/^const\s+([A-Z0-9_]+)\s*=\s*\n\s*[`"']([^`"']+)[`"'];/gm)) {
+    map.set(m[1], m[2]);
+  }
+  return map;
+}
+
+function value(raw, consts) {
+  if (!raw) return null;
+  const literal = raw.match(/^[`"'](.*)[`"']$/s);
+  if (literal) return literal[1];
+  const ident = raw.trim().match(/^([A-Za-z0-9_$]+)$/);
+  if (ident && consts.has(ident[1])) return consts.get(ident[1]);
+  const tpl = raw.match(/^`(.*)`$/s);
+  if (tpl) {
+    return tpl[1].replace(/\$\{([A-Za-z0-9_$]+)\}/g, (_, n) => consts.get(n) ?? "");
+  }
+  return null;
+}
+
 const issues = [];
 const titles = new Map();
 const descriptions = new Map();
@@ -66,7 +92,8 @@ for (const file of files) {
     continue;
   }
 
-  const title = firstMatch(src, /\{\s*title:\s*[`"']([^`"']+)[`"']/);
+  const consts = constants(src);
+  const title = value(firstMatch(src, /\{\s*title:\s*([^,\n}]+)/), consts);
   if (!title) add("title", "missing title in head() meta");
   else {
     if (title.length > 60) add("title", `title is ${title.length} chars (max 60)`);
@@ -75,7 +102,10 @@ for (const file of files) {
     else titles.set(title, path);
   }
 
-  const desc = firstMatch(src, /name:\s*"description",\s*content:\s*[`"']([^`"']+)[`"']/);
+  const desc = value(
+    firstMatch(src, /name:\s*"description",\s*content:\s*([^,\n}]+)/),
+    consts,
+  );
   if (!desc) add("description", "missing meta description");
   else {
     if (desc.length < 50) add("description", `description is ${desc.length} chars (min 50)`);
@@ -89,7 +119,10 @@ for (const file of files) {
     if (!src.includes(`"${prop}"`)) add("social", `missing ${prop}`);
   }
 
-  const canonical = firstMatch(src, /rel:\s*"canonical",\s*href:\s*[`"']([^`"'$]+)[`"']/);
+  const canonical = value(
+    firstMatch(src, /rel:\s*"canonical",\s*href:\s*([^,\n}\]]+)/),
+    consts,
+  );
   if (!canonical) add("canonical", "missing self-referencing canonical link");
   else {
     const expected = `${SITE_URL}${path === "/" ? "/" : path}`;
