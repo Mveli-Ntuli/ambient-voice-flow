@@ -62,8 +62,9 @@ function constants(src) {
   return map;
 }
 
-function value(raw, consts) {
-  if (!raw) return null;
+function value(input, consts) {
+  if (!input) return null;
+  const raw = input.trim();
   const literal = raw.match(/^[`"'](.*)[`"']$/s);
   if (literal) return literal[1];
   const ident = raw.trim().match(/^([A-Za-z0-9_$]+)$/);
