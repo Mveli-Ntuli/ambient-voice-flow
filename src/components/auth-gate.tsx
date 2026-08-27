@@ -258,7 +258,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const { ready, authed, session, login, register } = useAuth();
   const { ready: deptReady, department, select: selectDept, clear: clearDept } = useDepartment();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isPublicRoute = pathname === "/reception";
+  const isPublicRoute =
+    pathname === "/reception" || pathname.startsWith("/resources");
 
   const [mode, setMode] = useState<"login" | "register">("login");
   const [identifier, setIdentifier] = useState("");

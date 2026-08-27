@@ -16,6 +16,7 @@ import { Route as PromptLabRouteImport } from './routes/prompt-lab'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ResourcesAiVsTraditionalCadRouteImport } from './routes/resources.ai-vs-traditional-cad'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -52,6 +53,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResourcesAiVsTraditionalCadRoute =
+  ResourcesAiVsTraditionalCadRouteImport.update({
+    id: '/resources/ai-vs-traditional-cad',
+    path: '/resources/ai-vs-traditional-cad',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +68,7 @@ export interface FileRoutesByFullPath {
   '/reception': typeof ReceptionRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/resources/ai-vs-traditional-cad': typeof ResourcesAiVsTraditionalCadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +78,7 @@ export interface FileRoutesByTo {
   '/reception': typeof ReceptionRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/resources/ai-vs-traditional-cad': typeof ResourcesAiVsTraditionalCadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +89,7 @@ export interface FileRoutesById {
   '/reception': typeof ReceptionRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/resources/ai-vs-traditional-cad': typeof ResourcesAiVsTraditionalCadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +101,7 @@ export interface FileRouteTypes {
     | '/reception'
     | '/settings'
     | '/sitemap.xml'
+    | '/resources/ai-vs-traditional-cad'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +111,7 @@ export interface FileRouteTypes {
     | '/reception'
     | '/settings'
     | '/sitemap.xml'
+    | '/resources/ai-vs-traditional-cad'
   id:
     | '__root__'
     | '/'
@@ -109,6 +121,7 @@ export interface FileRouteTypes {
     | '/reception'
     | '/settings'
     | '/sitemap.xml'
+    | '/resources/ai-vs-traditional-cad'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +132,7 @@ export interface RootRouteChildren {
   ReceptionRoute: typeof ReceptionRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ResourcesAiVsTraditionalCadRoute: typeof ResourcesAiVsTraditionalCadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -172,6 +186,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/resources/ai-vs-traditional-cad': {
+      id: '/resources/ai-vs-traditional-cad'
+      path: '/resources/ai-vs-traditional-cad'
+      fullPath: '/resources/ai-vs-traditional-cad'
+      preLoaderRoute: typeof ResourcesAiVsTraditionalCadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -183,6 +204,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReceptionRoute: ReceptionRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ResourcesAiVsTraditionalCadRoute: ResourcesAiVsTraditionalCadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
