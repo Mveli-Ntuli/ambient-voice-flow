@@ -1,0 +1,40 @@
+{
+  "events": [
+    {
+      "at": "2026-08-30T19:43:50.797Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|parse|JSON-LD block could not be parsed: SITE_URL is not defined"
+    },
+    {
+      "at": "2026-08-30T19:43:50.797Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|parse|JSON-LD block could not be parsed: SITE_URL is not defined"
+    },
+    {
+      "at": "2026-08-30T19:43:50.797Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "/resources/ai-vs-traditional-cad|parse|JSON-LD block could not be parsed: TITLE is not defined"
+    },
+    {
+      "at": "2026-08-30T19:43:50.797Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "/resources/ai-vs-traditional-cad|parse|JSON-LD block could not be parsed: TITLE is not defined"
+    },
+    {
+      "at": "2026-08-30T19:43:51.978Z",
+      "check": "link-check",
+      "type": "regression",
+      "key": "src/routes/__root.tsx|external|https://fonts.googleapis.com failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:43:51.978Z",
+      "check": "link-check",
+      "type": "regression",
+      "key": "src/routes/__root.tsx|external|https://fonts.gstatic.com failed (HTTP 404)"
+    }
+  ]
+}
