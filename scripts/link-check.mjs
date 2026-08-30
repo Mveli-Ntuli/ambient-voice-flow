@@ -54,7 +54,11 @@ for (const file of files) {
   const found = [
     ...[...src.matchAll(/\bto=["']([^"'{}]+)["']/g)].map((m) => m[1]),
     ...[...src.matchAll(/\bhref=["']([^"'{}]+)["']/g)].map((m) => m[1]),
-    ...[...src.matchAll(/href:\s*["'](https?:\/\/[^"']+)["']/g)].map((m) => m[1]),
+    // link objects in head(): skip preconnect/dns-prefetch/preload hints,
+    // whose bare origins legitimately 404.
+    ...[...src.matchAll(/\{[^{}]*href:\s*["'](https?:\/\/[^"']+)["'][^{}]*\}/g)]
+      .filter((m) => !/preconnect|dns-prefetch|preload/.test(m[0]))
+      .map((m) => m[1]),
   ];
   for (const raw of found) {
     const url = raw.trim();

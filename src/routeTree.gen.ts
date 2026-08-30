@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SeoReportRouteImport } from './routes/seo-report'
 import { Route as ReceptionRouteImport } from './routes/reception'
 import { Route as PromptLabRouteImport } from './routes/prompt-lab'
 import { Route as HistoryRouteImport } from './routes/history'
@@ -26,6 +27,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SeoReportRoute = SeoReportRouteImport.update({
+  id: '/seo-report',
+  path: '/seo-report',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReceptionRoute = ReceptionRouteImport.update({
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof HistoryRoute
   '/prompt-lab': typeof PromptLabRoute
   '/reception': typeof ReceptionRoute
+  '/seo-report': typeof SeoReportRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/resources/ai-vs-traditional-cad': typeof ResourcesAiVsTraditionalCadRoute
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/history': typeof HistoryRoute
   '/prompt-lab': typeof PromptLabRoute
   '/reception': typeof ReceptionRoute
+  '/seo-report': typeof SeoReportRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/resources/ai-vs-traditional-cad': typeof ResourcesAiVsTraditionalCadRoute
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/history': typeof HistoryRoute
   '/prompt-lab': typeof PromptLabRoute
   '/reception': typeof ReceptionRoute
+  '/seo-report': typeof SeoReportRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/resources/ai-vs-traditional-cad': typeof ResourcesAiVsTraditionalCadRoute
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/prompt-lab'
     | '/reception'
+    | '/seo-report'
     | '/settings'
     | '/sitemap.xml'
     | '/resources/ai-vs-traditional-cad'
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/prompt-lab'
     | '/reception'
+    | '/seo-report'
     | '/settings'
     | '/sitemap.xml'
     | '/resources/ai-vs-traditional-cad'
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/prompt-lab'
     | '/reception'
+    | '/seo-report'
     | '/settings'
     | '/sitemap.xml'
     | '/resources/ai-vs-traditional-cad'
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   HistoryRoute: typeof HistoryRoute
   PromptLabRoute: typeof PromptLabRoute
   ReceptionRoute: typeof ReceptionRoute
+  SeoReportRoute: typeof SeoReportRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ResourcesAiVsTraditionalCadRoute: typeof ResourcesAiVsTraditionalCadRoute
@@ -149,6 +162,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/seo-report': {
+      id: '/seo-report'
+      path: '/seo-report'
+      fullPath: '/seo-report'
+      preLoaderRoute: typeof SeoReportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reception': {
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   HistoryRoute: HistoryRoute,
   PromptLabRoute: PromptLabRoute,
   ReceptionRoute: ReceptionRoute,
+  SeoReportRoute: SeoReportRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ResourcesAiVsTraditionalCadRoute: ResourcesAiVsTraditionalCadRoute,

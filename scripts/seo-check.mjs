@@ -19,6 +19,7 @@
  */
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { writeSection } from "./report-store.mjs";
 
 const ROUTES_DIR = "src/routes";
 const SITEMAP_FILE = join(ROUTES_DIR, "sitemap[.]xml.ts");
@@ -142,7 +143,8 @@ for (const file of files) {
     prev = level;
   }
 
-  if (sitemapSrc && !sitemapSrc.includes(`"${path}"`))
+  const noindex = /"noindex/.test(src);
+  if (sitemapSrc && !noindex && !sitemapSrc.includes(`"${path}"`))
     add("sitemap", "route is not listed in sitemap.xml");
 }
 
@@ -168,6 +170,18 @@ const baseline = existsSync(BASELINE)
   : new Set();
 const regressions = current.filter((k) => !baseline.has(k));
 const resolved = [...baseline].filter((k) => !current.includes(k));
+
+writeSection(
+  "seo-check",
+  {
+    label: "Metadata, headings & canonicals",
+    status: regressions.length ? "fail" : issues.length ? "warn" : "pass",
+    summary: `${files.length} route(s) scanned — ${issues.length} issue(s), ${regressions.length} regression(s)`,
+    issues,
+    meta: { baselineIssues: [...baseline], resolved },
+  },
+  { regressions, fixes: resolved },
+);
 
 console.log(`\nSEO check — ${files.length} routes scanned, ${issues.length} issue(s) found.`);
 for (const i of issues) console.log(`  [${i.rule}] ${i.route}: ${i.message}`);
