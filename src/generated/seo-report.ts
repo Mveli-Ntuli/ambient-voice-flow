@@ -18,51 +18,57 @@ export const seoReport: SeoReport = {
     "schema-check": {
       "label": "Structured data (JSON-LD)",
       "status": "fail",
-      "summary": "0 JSON-LD node(s) across 0 route(s) — 4 error(s), 0 warning(s)",
+      "summary": "4 JSON-LD node(s) across 2 route(s) — 1 error(s), 3 warning(s)",
       "issues": [
         {
           "route": "(sitewide)",
-          "rule": "parse",
-          "message": "JSON-LD block could not be parsed: SITE_URL is not defined"
+          "rule": "recommended",
+          "message": "Organization is missing recommended field \"sameAs\""
         },
         {
           "route": "(sitewide)",
-          "rule": "parse",
-          "message": "JSON-LD block could not be parsed: SITE_URL is not defined"
+          "rule": "url",
+          "message": "Organization.logo should be an absolute URL (got \"dynamic/icons/icon-512x512.png\")"
+        },
+        {
+          "route": "(sitewide)",
+          "rule": "recommended",
+          "message": "WebSite is missing recommended field \"potentialAction\""
         },
         {
           "route": "/resources/ai-vs-traditional-cad",
-          "rule": "parse",
-          "message": "JSON-LD block could not be parsed: TITLE is not defined"
-        },
-        {
-          "route": "/resources/ai-vs-traditional-cad",
-          "rule": "parse",
-          "message": "JSON-LD block could not be parsed: TITLE is not defined"
+          "rule": "recommended",
+          "message": "Article is missing recommended field \"image\""
         }
       ],
       "meta": {
-        "nodes": []
+        "nodes": [
+          {
+            "route": "(sitewide)",
+            "type": "Organization"
+          },
+          {
+            "route": "(sitewide)",
+            "type": "WebSite"
+          },
+          {
+            "route": "/resources/ai-vs-traditional-cad",
+            "type": "Article"
+          },
+          {
+            "route": "/resources/ai-vs-traditional-cad",
+            "type": "BreadcrumbList"
+          }
+        ]
       },
       "name": "schema-check",
-      "ranAt": "2026-08-30T19:43:50.797Z"
+      "ranAt": "2026-08-30T19:44:05.702Z"
     },
     "link-check": {
       "label": "Broken links & redirects",
-      "status": "fail",
-      "summary": "10 link(s) checked — 2 broken, 0 redirecting",
-      "issues": [
-        {
-          "route": "src/routes/__root.tsx",
-          "rule": "external",
-          "message": "https://fonts.googleapis.com failed (HTTP 404)"
-        },
-        {
-          "route": "src/routes/__root.tsx",
-          "rule": "external",
-          "message": "https://fonts.gstatic.com failed (HTTP 404)"
-        }
-      ],
+      "status": "pass",
+      "summary": "8 link(s) checked — 0 broken, 0 redirecting",
+      "issues": [],
       "meta": {
         "csv": ".lovable/reports/link-check.csv",
         "rows": [
@@ -71,20 +77,6 @@ export const seoReport: SeoReport = {
             "type": "internal",
             "status": "ok",
             "from": "src/lib/error-page.ts src/routes/__root.tsx src/routes/reception.tsx src/routes/resources.ai-vs-traditional-cad.tsx"
-          },
-          {
-            "url": "https://fonts.googleapis.com",
-            "type": "external",
-            "status": "broken",
-            "from": "src/routes/__root.tsx",
-            "note": "HTTP 404"
-          },
-          {
-            "url": "https://fonts.gstatic.com",
-            "type": "external",
-            "status": "broken",
-            "from": "src/routes/__root.tsx",
-            "note": "HTTP 404"
           },
           {
             "url": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@300;400;500;600&display=swap",
@@ -131,7 +123,7 @@ export const seoReport: SeoReport = {
         ]
       },
       "name": "link-check",
-      "ranAt": "2026-08-30T19:43:51.978Z"
+      "ranAt": "2026-08-30T19:44:06.410Z"
     }
   },
   "history": [
@@ -170,7 +162,55 @@ export const seoReport: SeoReport = {
       "check": "link-check",
       "type": "regression",
       "key": "src/routes/__root.tsx|external|https://fonts.gstatic.com failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|recommended|Organization is missing recommended field \"sameAs\""
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|url|Organization.logo should be an absolute URL (got \"dynamic/icons/icon-512x512.png\")"
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|recommended|WebSite is missing recommended field \"potentialAction\""
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "/resources/ai-vs-traditional-cad|recommended|Article is missing recommended field \"image\""
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "fix",
+      "key": "(sitewide)|parse|JSON-LD block could not be parsed: SITE_URL is not defined"
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "fix",
+      "key": "/resources/ai-vs-traditional-cad|parse|JSON-LD block could not be parsed: TITLE is not defined"
+    },
+    {
+      "at": "2026-08-30T19:44:06.410Z",
+      "check": "link-check",
+      "type": "fix",
+      "key": "src/routes/__root.tsx|external|https://fonts.googleapis.com failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:44:06.410Z",
+      "check": "link-check",
+      "type": "fix",
+      "key": "src/routes/__root.tsx|external|https://fonts.gstatic.com failed (HTTP 404)"
     }
   ],
-  "generatedAt": "2026-08-30T19:43:51.978Z"
+  "generatedAt": "2026-08-30T19:44:06.410Z"
 };

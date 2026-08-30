@@ -35,6 +35,54 @@
       "check": "link-check",
       "type": "regression",
       "key": "src/routes/__root.tsx|external|https://fonts.gstatic.com failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|recommended|Organization is missing recommended field \"sameAs\""
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|url|Organization.logo should be an absolute URL (got \"dynamic/icons/icon-512x512.png\")"
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|recommended|WebSite is missing recommended field \"potentialAction\""
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "/resources/ai-vs-traditional-cad|recommended|Article is missing recommended field \"image\""
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "fix",
+      "key": "(sitewide)|parse|JSON-LD block could not be parsed: SITE_URL is not defined"
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "fix",
+      "key": "/resources/ai-vs-traditional-cad|parse|JSON-LD block could not be parsed: TITLE is not defined"
+    },
+    {
+      "at": "2026-08-30T19:44:06.410Z",
+      "check": "link-check",
+      "type": "fix",
+      "key": "src/routes/__root.tsx|external|https://fonts.googleapis.com failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:44:06.410Z",
+      "check": "link-check",
+      "type": "fix",
+      "key": "src/routes/__root.tsx|external|https://fonts.gstatic.com failed (HTTP 404)"
     }
   ]
 }

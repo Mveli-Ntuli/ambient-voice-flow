@@ -84,7 +84,11 @@ function evalObject(text) {
   const proxy = new Proxy(
     {},
     {
-      get: (_t, prop) => (prop === Symbol.toPrimitive ? () => "dynamic" : proxy),
+      get: (_t, prop) => {
+        if (prop === Symbol.unscopables) return undefined;
+        if (prop === Symbol.toPrimitive) return () => "dynamic";
+        return proxy;
+      },
       has: () => true,
     },
   );
