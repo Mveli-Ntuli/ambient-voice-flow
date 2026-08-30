@@ -83,6 +83,12 @@
       "check": "link-check",
       "type": "fix",
       "key": "src/routes/__root.tsx|external|https://fonts.gstatic.com failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:44:16.702Z",
+      "check": "schema-check",
+      "type": "fix",
+      "key": "(sitewide)|url|Organization.logo should be an absolute URL (got \"dynamic/icons/icon-512x512.png\")"
     }
   ]
 }

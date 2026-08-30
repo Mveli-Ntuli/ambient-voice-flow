@@ -17,18 +17,13 @@ export const seoReport: SeoReport = {
     },
     "schema-check": {
       "label": "Structured data (JSON-LD)",
-      "status": "fail",
-      "summary": "4 JSON-LD node(s) across 2 route(s) — 1 error(s), 3 warning(s)",
+      "status": "warn",
+      "summary": "4 JSON-LD node(s) across 2 route(s) — 0 error(s), 3 warning(s)",
       "issues": [
         {
           "route": "(sitewide)",
           "rule": "recommended",
           "message": "Organization is missing recommended field \"sameAs\""
-        },
-        {
-          "route": "(sitewide)",
-          "rule": "url",
-          "message": "Organization.logo should be an absolute URL (got \"dynamic/icons/icon-512x512.png\")"
         },
         {
           "route": "(sitewide)",
@@ -62,7 +57,7 @@ export const seoReport: SeoReport = {
         ]
       },
       "name": "schema-check",
-      "ranAt": "2026-08-30T19:44:05.702Z"
+      "ranAt": "2026-08-30T19:44:16.702Z"
     },
     "link-check": {
       "label": "Broken links & redirects",
@@ -210,7 +205,13 @@ export const seoReport: SeoReport = {
       "check": "link-check",
       "type": "fix",
       "key": "src/routes/__root.tsx|external|https://fonts.gstatic.com failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:44:16.702Z",
+      "check": "schema-check",
+      "type": "fix",
+      "key": "(sitewide)|url|Organization.logo should be an absolute URL (got \"dynamic/icons/icon-512x512.png\")"
     }
   ],
-  "generatedAt": "2026-08-30T19:44:06.410Z"
+  "generatedAt": "2026-08-30T19:44:16.702Z"
 };

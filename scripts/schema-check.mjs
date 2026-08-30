@@ -80,12 +80,22 @@ function extractObjects(src) {
 
 /** Evaluates a static object literal; identifiers resolve to a proxy so
  * loader-driven values (loaderData.title) don't break validation. */
-function evalObject(text) {
+/** top-level `const NAME = "value";` string constants */
+function constants(src) {
+  const map = {};
+  for (const m of src.matchAll(/^const\s+([A-Za-z0-9_$]+)\s*=\s*\n?\s*[`"']([^`"']*)[`"'];/gm)) {
+    map[m[1]] = m[2];
+  }
+  return map;
+}
+
+function evalObject(text, consts = {}) {
   const proxy = new Proxy(
-    {},
+    { ...consts },
     {
-      get: (_t, prop) => {
+      get: (target, prop) => {
         if (prop === Symbol.unscopables) return undefined;
+        if (typeof prop === "string" && prop in target) return target[prop];
         if (prop === Symbol.toPrimitive) return () => "dynamic";
         return proxy;
       },
@@ -114,7 +124,7 @@ for (const file of routeFiles(ROUTES_DIR)) {
 
   for (const text of extractObjects(src)) {
     if (!/["']?@type["']?\s*:/.test(text)) continue;
-    const parsed = evalObject(text);
+    const parsed = evalObject(text, constants(src));
     if (parsed.error) {
       add("parse", `JSON-LD block could not be parsed: ${parsed.error}`);
       continue;
