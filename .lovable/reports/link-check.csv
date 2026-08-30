@@ -6,4 +6,5 @@ url,type,status,note,found_in
 "https://ambient-voice-flow.lovable.app/","external","ok","","src/routes/index.tsx"
 "https://ambient-voice-flow.lovable.app/prompt-lab","external","ok","","src/routes/prompt-lab.tsx"
 "https://ambient-voice-flow.lovable.app/reception","external","ok","","src/routes/reception.tsx"
+"https://ambient-voice-flow.lovable.app/seo-report","external","broken","HTTP 404","src/routes/seo-report.tsx"
 "https://ambient-voice-flow.lovable.app/settings","external","ok","","src/routes/settings.tsx"

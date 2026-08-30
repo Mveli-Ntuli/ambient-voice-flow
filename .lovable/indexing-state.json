@@ -1,0 +1,40 @@
+{
+  "checkedAt": "2026-08-30T19:46:18.873Z",
+  "urls": {
+    "https://ambient-voice-flow.lovable.app/": {
+      "verdict": "PASS",
+      "coverageState": "Submitted and indexed",
+      "lastCrawlTime": "2026-08-27T02:08:12Z"
+    },
+    "https://ambient-voice-flow.lovable.app/analytics": {
+      "verdict": "NEUTRAL",
+      "coverageState": "URL is unknown to Google",
+      "lastCrawlTime": null
+    },
+    "https://ambient-voice-flow.lovable.app/history": {
+      "verdict": "NEUTRAL",
+      "coverageState": "Discovered - currently not indexed",
+      "lastCrawlTime": null
+    },
+    "https://ambient-voice-flow.lovable.app/prompt-lab": {
+      "verdict": "NEUTRAL",
+      "coverageState": "URL is unknown to Google",
+      "lastCrawlTime": null
+    },
+    "https://ambient-voice-flow.lovable.app/reception": {
+      "verdict": "NEUTRAL",
+      "coverageState": "Discovered - currently not indexed",
+      "lastCrawlTime": null
+    },
+    "https://ambient-voice-flow.lovable.app/resources/ai-vs-traditional-cad": {
+      "verdict": "NEUTRAL",
+      "coverageState": "Discovered - currently not indexed",
+      "lastCrawlTime": null
+    },
+    "https://ambient-voice-flow.lovable.app/settings": {
+      "verdict": "NEUTRAL",
+      "coverageState": "Discovered - currently not indexed",
+      "lastCrawlTime": null
+    }
+  }
+}
