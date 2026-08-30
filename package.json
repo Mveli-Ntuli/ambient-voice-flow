@@ -12,7 +12,13 @@
     "seo:check": "node scripts/seo-check.mjs",
     "seo:check:strict": "node scripts/seo-check.mjs --strict",
     "seo:baseline": "node scripts/seo-check.mjs --update",
-    "postbuild": "node scripts/seo-check.mjs",
+    "seo:schema": "node scripts/schema-check.mjs",
+    "seo:links": "node scripts/link-check.mjs",
+    "seo:indexing": "node scripts/indexing-check.mjs",
+    "seo:lighthouse": "node scripts/lighthouse-ci.mjs",
+    "seo:audit": "node scripts/seo-check.mjs && node scripts/schema-check.mjs && node scripts/link-check.mjs && node scripts/lighthouse-ci.mjs",
+    "seo:audit:strict": "node scripts/seo-check.mjs --strict && node scripts/schema-check.mjs --strict && node scripts/link-check.mjs --strict && node scripts/lighthouse-ci.mjs --strict",
+    "postbuild": "node scripts/seo-check.mjs && node scripts/schema-check.mjs && node scripts/link-check.mjs && node scripts/lighthouse-ci.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {
