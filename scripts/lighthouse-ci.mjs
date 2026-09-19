@@ -14,6 +14,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { writeSection, readReport } from "./report-store.mjs";
+import { sendAlert } from "./alerts.mjs";
 
 const THRESHOLD_FILE = ".lovable/lighthouse-thresholds.json";
 const OUT_JSON = ".lovable/reports/lighthouse.json";
@@ -121,4 +122,15 @@ writeSection(
 console.log(`\nLighthouse CI — ${url}`);
 for (const [k, v] of Object.entries(scores))
   console.log(`  ${v >= (thresholds[k] ?? 0) ? "✓" : "✗"} ${k}: ${v} (min ${thresholds[k] ?? "-"})`);
+
+if (issues.length) {
+  await sendAlert({
+    check: "lighthouse",
+    label: "Lighthouse CI",
+    status: "fail",
+    summary: `${url} — ${Object.entries(scores).map(([k, v]) => `${k} ${v}`).join(" · ")}`,
+    issues,
+    regressions: nowKeys.filter((k) => !prevKeys.has(k)),
+  });
+}
 if (issues.length && strict) process.exit(1);
