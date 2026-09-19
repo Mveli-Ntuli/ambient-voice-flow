@@ -12,6 +12,7 @@
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { writeSection, readReport } from "./report-store.mjs";
+import { sendAlert } from "./alerts.mjs";
 
 const ROUTES_DIR = "src/routes";
 const SRC_DIR = "src";
@@ -151,18 +152,21 @@ const redirects = rows.filter((r) => r.status === "redirect").length;
 const key = (i) => `${i.route}|${i.rule}|${i.message}`;
 const prevKeys = new Set((readReport().sections["link-check"]?.issues ?? []).map(key));
 const nowKeys = issues.map(key);
+const regressions = nowKeys.filter((k) => !prevKeys.has(k));
+const status = broken ? "fail" : redirects ? "warn" : "pass";
+const summary = `${rows.length} link(s) checked — ${broken} broken, ${redirects} redirecting`;
 
 writeSection(
   "link-check",
   {
     label: "Broken links & redirects",
-    status: broken ? "fail" : redirects ? "warn" : "pass",
-    summary: `${rows.length} link(s) checked — ${broken} broken, ${redirects} redirecting`,
+    status,
+    summary,
     issues,
     meta: { csv: CSV_OUT, rows },
   },
   {
-    regressions: nowKeys.filter((k) => !prevKeys.has(k)),
+    regressions,
     fixes: [...prevKeys].filter((k) => !nowKeys.includes(k)),
   },
 );
@@ -171,4 +175,15 @@ console.log(`\nLink check — ${rows.length} link(s), ${broken} broken, ${redire
 for (const r of rows.filter((r) => r.status !== "ok" && r.status !== "skipped"))
   console.log(`  [${r.status}] ${r.url} ${r.note ? `— ${r.note}` : ""} (in ${r.from})`);
 console.log(`  Report exported to ${CSV_OUT}`);
+
+if (status !== "pass") {
+  await sendAlert({
+    check: "link-check",
+    label: "Broken links & redirects",
+    status,
+    summary,
+    issues,
+    regressions,
+  });
+}
 if (broken && strict) process.exit(1);

@@ -20,6 +20,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { writeSection } from "./report-store.mjs";
+import { sendAlert } from "./alerts.mjs";
 
 const ROUTES_DIR = "src/routes";
 const SITEMAP_FILE = join(ROUTES_DIR, "sitemap[.]xml.ts");
@@ -192,6 +193,14 @@ if (resolved.length) {
 if (regressions.length) {
   console.log(`\nREGRESSIONS (${regressions.length}) — new since baseline:`);
   for (const r of regressions) console.log(`  ✗ ${r.split("|").join(" — ")}`);
+  await sendAlert({
+    check: "seo-check",
+    label: "Metadata, headings & canonicals",
+    status: "fail",
+    summary: `${regressions.length} new metadata/heading regression(s) across ${files.length} route(s)`,
+    issues,
+    regressions,
+  });
   if (strict) process.exit(1);
 } else {
   console.log("\nNo SEO regressions against baseline.");
