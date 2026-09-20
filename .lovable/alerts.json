@@ -1,9 +1,7 @@
 {
   "enabled": true,
-  "slackChannel": "#seo-alerts",
+  "slackChannel": "#all-new-workspace",
   "emailRecipients": [],
   "emailFrom": "SEO Watchdog <onboarding@resend.dev>",
-  "notifyOn": [
-    "fail"
-  ]
+  "notifyOn": ["fail"]
 }
