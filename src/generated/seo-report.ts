@@ -13,7 +13,7 @@ export const seoReport: SeoReport = {
         "resolved": []
       },
       "name": "seo-check",
-      "ranAt": "2026-08-30T19:45:06.987Z"
+      "ranAt": "2026-09-20T17:04:32.975Z"
     },
     "schema-check": {
       "label": "Structured data (JSON-LD)",
@@ -57,7 +57,7 @@ export const seoReport: SeoReport = {
         ]
       },
       "name": "schema-check",
-      "ranAt": "2026-08-30T19:45:07.032Z"
+      "ranAt": "2026-09-20T17:04:33.085Z"
     },
     "link-check": {
       "label": "Broken links & redirects",
@@ -131,7 +131,7 @@ export const seoReport: SeoReport = {
         ]
       },
       "name": "link-check",
-      "ranAt": "2026-08-30T19:45:08.119Z"
+      "ranAt": "2026-09-20T17:04:35.129Z"
     },
     "lighthouse": {
       "label": "Lighthouse CI",
@@ -165,38 +165,38 @@ export const seoReport: SeoReport = {
     },
     "indexing": {
       "label": "Sitemap indexing status",
-      "status": "fail",
-      "summary": "7 sitemap URL(s) checked — 6 not indexed",
+      "status": "warn",
+      "summary": "7 sitemap URL(s) checked — 6 not indexed (0 past the 72h window), 0 from cache, 7 API call(s)",
       "issues": [
         {
           "route": "https://ambient-voice-flow.lovable.app/analytics",
-          "rule": "new-not-indexed",
-          "message": "New page is not indexed — URL is unknown to Google"
+          "rule": "not-indexed",
+          "message": "Not indexed (0h of 72h wait window) — URL is unknown to Google"
         },
         {
           "route": "https://ambient-voice-flow.lovable.app/history",
-          "rule": "new-not-indexed",
-          "message": "New page is not indexed — Discovered - currently not indexed"
+          "rule": "not-indexed",
+          "message": "Not indexed (0h of 72h wait window) — Discovered - currently not indexed"
         },
         {
           "route": "https://ambient-voice-flow.lovable.app/prompt-lab",
-          "rule": "new-not-indexed",
-          "message": "New page is not indexed — URL is unknown to Google"
+          "rule": "not-indexed",
+          "message": "Not indexed (0h of 72h wait window) — URL is unknown to Google"
         },
         {
           "route": "https://ambient-voice-flow.lovable.app/reception",
-          "rule": "new-not-indexed",
-          "message": "New page is not indexed — Discovered - currently not indexed"
+          "rule": "not-indexed",
+          "message": "Not indexed (0h of 72h wait window) — URL is unknown to Google"
         },
         {
           "route": "https://ambient-voice-flow.lovable.app/resources/ai-vs-traditional-cad",
-          "rule": "new-not-indexed",
-          "message": "New page is not indexed — Discovered - currently not indexed"
+          "rule": "not-indexed",
+          "message": "Not indexed (0h of 72h wait window) — URL is unknown to Google"
         },
         {
           "route": "https://ambient-voice-flow.lovable.app/settings",
-          "rule": "new-not-indexed",
-          "message": "New page is not indexed — Discovered - currently not indexed"
+          "rule": "not-indexed",
+          "message": "Not indexed (0h of 72h wait window) — URL is unknown to Google"
         }
       ],
       "meta": {
@@ -204,43 +204,81 @@ export const seoReport: SeoReport = {
           "https://ambient-voice-flow.lovable.app/": {
             "verdict": "PASS",
             "coverageState": "Submitted and indexed",
-            "lastCrawlTime": "2026-08-27T02:08:12Z"
+            "lastCrawlTime": "2026-08-27T02:08:12Z",
+            "firstSeenAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "fromCache": false,
+            "error": null
           },
           "https://ambient-voice-flow.lovable.app/analytics": {
             "verdict": "NEUTRAL",
             "coverageState": "URL is unknown to Google",
-            "lastCrawlTime": null
+            "lastCrawlTime": null,
+            "firstSeenAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "fromCache": false,
+            "error": null
           },
           "https://ambient-voice-flow.lovable.app/history": {
             "verdict": "NEUTRAL",
             "coverageState": "Discovered - currently not indexed",
-            "lastCrawlTime": null
+            "lastCrawlTime": null,
+            "firstSeenAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "fromCache": false,
+            "error": null
           },
           "https://ambient-voice-flow.lovable.app/prompt-lab": {
             "verdict": "NEUTRAL",
             "coverageState": "URL is unknown to Google",
-            "lastCrawlTime": null
+            "lastCrawlTime": null,
+            "firstSeenAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "fromCache": false,
+            "error": null
           },
           "https://ambient-voice-flow.lovable.app/reception": {
             "verdict": "NEUTRAL",
-            "coverageState": "Discovered - currently not indexed",
-            "lastCrawlTime": null
+            "coverageState": "URL is unknown to Google",
+            "lastCrawlTime": null,
+            "firstSeenAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "fromCache": false,
+            "error": null
           },
           "https://ambient-voice-flow.lovable.app/resources/ai-vs-traditional-cad": {
             "verdict": "NEUTRAL",
-            "coverageState": "Discovered - currently not indexed",
-            "lastCrawlTime": null
+            "coverageState": "URL is unknown to Google",
+            "lastCrawlTime": null,
+            "firstSeenAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "fromCache": false,
+            "error": null
           },
           "https://ambient-voice-flow.lovable.app/settings": {
             "verdict": "NEUTRAL",
-            "coverageState": "Discovered - currently not indexed",
-            "lastCrawlTime": null
+            "coverageState": "URL is unknown to Google",
+            "lastCrawlTime": null,
+            "firstSeenAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "fromCache": false,
+            "error": null
           }
         },
-        "siteUrl": "https://ambient-voice-flow.lovable.app/"
+        "siteUrl": "https://ambient-voice-flow.lovable.app/",
+        "config": {
+          "graceHours": 72,
+          "cacheTtlHours": 12,
+          "requestDelayMs": 400,
+          "maxRetries": 4
+        },
+        "cacheHits": 0,
+        "apiCalls": 7,
+        "throttleEvents": 0,
+        "gateFailures": 0
       },
       "name": "indexing",
-      "ranAt": "2026-08-30T19:46:18.873Z"
+      "ranAt": "2026-09-20T17:05:27.419Z"
     }
   },
   "history": [
@@ -383,5 +421,5 @@ export const seoReport: SeoReport = {
       "key": "https://ambient-voice-flow.lovable.app/settings|indexing"
     }
   ],
-  "generatedAt": "2026-08-30T19:46:18.873Z"
+  "generatedAt": "2026-09-20T17:05:27.419Z"
 };

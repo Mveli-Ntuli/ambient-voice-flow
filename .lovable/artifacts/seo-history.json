@@ -1,0 +1,142 @@
+{
+  "events": [
+    {
+      "at": "2026-08-30T19:43:50.797Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|parse|JSON-LD block could not be parsed: SITE_URL is not defined"
+    },
+    {
+      "at": "2026-08-30T19:43:50.797Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|parse|JSON-LD block could not be parsed: SITE_URL is not defined"
+    },
+    {
+      "at": "2026-08-30T19:43:50.797Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "/resources/ai-vs-traditional-cad|parse|JSON-LD block could not be parsed: TITLE is not defined"
+    },
+    {
+      "at": "2026-08-30T19:43:50.797Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "/resources/ai-vs-traditional-cad|parse|JSON-LD block could not be parsed: TITLE is not defined"
+    },
+    {
+      "at": "2026-08-30T19:43:51.978Z",
+      "check": "link-check",
+      "type": "regression",
+      "key": "src/routes/__root.tsx|external|https://fonts.googleapis.com failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:43:51.978Z",
+      "check": "link-check",
+      "type": "regression",
+      "key": "src/routes/__root.tsx|external|https://fonts.gstatic.com failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|recommended|Organization is missing recommended field \"sameAs\""
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|url|Organization.logo should be an absolute URL (got \"dynamic/icons/icon-512x512.png\")"
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "(sitewide)|recommended|WebSite is missing recommended field \"potentialAction\""
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "regression",
+      "key": "/resources/ai-vs-traditional-cad|recommended|Article is missing recommended field \"image\""
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "fix",
+      "key": "(sitewide)|parse|JSON-LD block could not be parsed: SITE_URL is not defined"
+    },
+    {
+      "at": "2026-08-30T19:44:05.702Z",
+      "check": "schema-check",
+      "type": "fix",
+      "key": "/resources/ai-vs-traditional-cad|parse|JSON-LD block could not be parsed: TITLE is not defined"
+    },
+    {
+      "at": "2026-08-30T19:44:06.410Z",
+      "check": "link-check",
+      "type": "fix",
+      "key": "src/routes/__root.tsx|external|https://fonts.googleapis.com failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:44:06.410Z",
+      "check": "link-check",
+      "type": "fix",
+      "key": "src/routes/__root.tsx|external|https://fonts.gstatic.com failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:44:16.702Z",
+      "check": "schema-check",
+      "type": "fix",
+      "key": "(sitewide)|url|Organization.logo should be an absolute URL (got \"dynamic/icons/icon-512x512.png\")"
+    },
+    {
+      "at": "2026-08-30T19:45:08.119Z",
+      "check": "link-check",
+      "type": "regression",
+      "key": "src/routes/seo-report.tsx|external|https://ambient-voice-flow.lovable.app/seo-report failed (HTTP 404)"
+    },
+    {
+      "at": "2026-08-30T19:45:32.419Z",
+      "check": "lighthouse",
+      "type": "regression",
+      "key": "http://localhost:8080|performance|performance scored 56 (threshold 70)"
+    },
+    {
+      "at": "2026-08-30T19:46:18.873Z",
+      "check": "indexing",
+      "type": "regression",
+      "key": "https://ambient-voice-flow.lovable.app/analytics|indexing"
+    },
+    {
+      "at": "2026-08-30T19:46:18.873Z",
+      "check": "indexing",
+      "type": "regression",
+      "key": "https://ambient-voice-flow.lovable.app/history|indexing"
+    },
+    {
+      "at": "2026-08-30T19:46:18.873Z",
+      "check": "indexing",
+      "type": "regression",
+      "key": "https://ambient-voice-flow.lovable.app/prompt-lab|indexing"
+    },
+    {
+      "at": "2026-08-30T19:46:18.873Z",
+      "check": "indexing",
+      "type": "regression",
+      "key": "https://ambient-voice-flow.lovable.app/reception|indexing"
+    },
+    {
+      "at": "2026-08-30T19:46:18.873Z",
+      "check": "indexing",
+      "type": "regression",
+      "key": "https://ambient-voice-flow.lovable.app/resources/ai-vs-traditional-cad|indexing"
+    },
+    {
+      "at": "2026-08-30T19:46:18.873Z",
+      "check": "indexing",
+      "type": "regression",
+      "key": "https://ambient-voice-flow.lovable.app/settings|indexing"
+    }
+  ]
+}

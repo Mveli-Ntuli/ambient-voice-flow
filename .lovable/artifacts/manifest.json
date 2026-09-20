@@ -1,0 +1,96 @@
+{
+  "generatedAt": "2026-09-20T17:05:27.535Z",
+  "site": "https://ambient-voice-flow.lovable.app",
+  "commit": null,
+  "overallStatus": "fail",
+  "checks": [
+    {
+      "name": "seo-check",
+      "label": "Metadata, headings & canonicals",
+      "status": "pass",
+      "summary": "8 route(s) scanned — 0 issue(s), 0 regression(s)",
+      "issues": 0,
+      "ranAt": "2026-09-20T17:04:32.975Z"
+    },
+    {
+      "name": "schema-check",
+      "label": "Structured data (JSON-LD)",
+      "status": "warn",
+      "summary": "4 JSON-LD node(s) across 2 route(s) — 0 error(s), 3 warning(s)",
+      "issues": 3,
+      "ranAt": "2026-09-20T17:04:33.085Z"
+    },
+    {
+      "name": "link-check",
+      "label": "Broken links & redirects",
+      "status": "fail",
+      "summary": "9 link(s) checked — 1 broken, 0 redirecting",
+      "issues": 1,
+      "ranAt": "2026-09-20T17:04:35.129Z"
+    },
+    {
+      "name": "lighthouse",
+      "label": "Lighthouse CI",
+      "status": "fail",
+      "summary": "performance 56 · accessibility 98 · best-practices 100 · seo 100",
+      "issues": 1,
+      "ranAt": "2026-08-30T19:45:32.419Z"
+    },
+    {
+      "name": "indexing",
+      "label": "Sitemap indexing status",
+      "status": "warn",
+      "summary": "7 sitemap URL(s) checked — 6 not indexed (0 past the 72h window), 0 from cache, 7 API call(s)",
+      "issues": 6,
+      "ranAt": "2026-09-20T17:05:27.419Z"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "seo-report.json",
+      "label": "Aggregated report",
+      "source": "src/generated/seo-report.json"
+    },
+    {
+      "name": "seo-history.json",
+      "label": "Regression & fix history",
+      "source": ".lovable/seo-history.json"
+    },
+    {
+      "name": "seo-baseline.json",
+      "label": "Metadata baseline",
+      "source": ".lovable/seo-baseline.json"
+    },
+    {
+      "name": "indexing-state.json",
+      "label": "Indexing verdicts",
+      "source": ".lovable/indexing-state.json"
+    },
+    {
+      "name": "indexing-cache.json",
+      "label": "Indexing API cache",
+      "source": ".lovable/indexing-cache.json"
+    },
+    {
+      "name": "lighthouse.json",
+      "label": "Lighthouse raw run",
+      "source": ".lovable/reports/lighthouse.json"
+    },
+    {
+      "name": "link-check.csv",
+      "label": "Link check table",
+      "source": ".lovable/reports/link-check.csv"
+    },
+    {
+      "name": "lighthouse-thresholds.json",
+      "label": "Lighthouse thresholds",
+      "source": ".lovable/lighthouse-thresholds.json"
+    },
+    {
+      "name": "alerts-log.json",
+      "label": "Alert delivery log",
+      "source": ".lovable/alerts-log.json"
+    }
+  ],
+  "missing": []
+}

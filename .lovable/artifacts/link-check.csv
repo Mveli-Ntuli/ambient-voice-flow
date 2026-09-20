@@ -1,0 +1,10 @@
+url,type,status,note,found_in
+"/","internal","ok","","src/lib/error-page.ts src/routes/__root.tsx src/routes/reception.tsx src/routes/resources.ai-vs-traditional-cad.tsx"
+"https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@300;400;500;600&display=swap","external","ok","","src/routes/__root.tsx"
+"https://ambient-voice-flow.lovable.app/analytics","external","ok","","src/routes/analytics.tsx"
+"https://ambient-voice-flow.lovable.app/history","external","ok","","src/routes/history.tsx"
+"https://ambient-voice-flow.lovable.app/","external","ok","","src/routes/index.tsx"
+"https://ambient-voice-flow.lovable.app/prompt-lab","external","ok","","src/routes/prompt-lab.tsx"
+"https://ambient-voice-flow.lovable.app/reception","external","ok","","src/routes/reception.tsx"
+"https://ambient-voice-flow.lovable.app/seo-report","external","broken","HTTP 404","src/routes/seo-report.tsx"
+"https://ambient-voice-flow.lovable.app/settings","external","ok","","src/routes/settings.tsx"
