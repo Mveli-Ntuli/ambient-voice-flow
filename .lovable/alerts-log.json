@@ -19,6 +19,26 @@
           "error": "RESEND_API_KEY is not set"
         }
       ]
+    },
+    {
+      "at": "2026-09-20T19:46:18.917Z",
+      "check": "test",
+      "status": "fail",
+      "summary": "Test alert from the SEO quality pipeline — Slack delivery is working.",
+      "results": [
+        {
+          "channel": "slack",
+          "ok": true,
+          "via": "gateway",
+          "channelName": "#all-new-workspace"
+        },
+        {
+          "channel": "email",
+          "ok": false,
+          "skipped": true,
+          "error": "RESEND_API_KEY is not set"
+        }
+      ]
     }
   ]
 }
