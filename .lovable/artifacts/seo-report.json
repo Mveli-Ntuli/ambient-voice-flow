@@ -58,15 +58,9 @@
     },
     "link-check": {
       "label": "Broken links & redirects",
-      "status": "fail",
-      "summary": "9 link(s) checked — 1 broken, 0 redirecting",
-      "issues": [
-        {
-          "route": "src/routes/seo-report.tsx",
-          "rule": "external",
-          "message": "https://ambient-voice-flow.lovable.app/seo-report failed (HTTP 404)"
-        }
-      ],
+      "status": "pass",
+      "summary": "9 link(s) checked — 0 broken, 0 redirecting",
+      "issues": [],
       "meta": {
         "csv": ".lovable/reports/link-check.csv",
         "rows": [
@@ -77,70 +71,63 @@
             "from": "src/lib/error-page.ts src/routes/__root.tsx src/routes/reception.tsx src/routes/resources.ai-vs-traditional-cad.tsx"
           },
           {
-            "url": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@300;400;500;600&display=swap",
-            "type": "external",
-            "status": "ok",
-            "from": "src/routes/__root.tsx"
-          },
-          {
             "url": "https://ambient-voice-flow.lovable.app/analytics",
-            "type": "external",
+            "type": "internal",
             "status": "ok",
             "from": "src/routes/analytics.tsx"
           },
           {
             "url": "https://ambient-voice-flow.lovable.app/history",
-            "type": "external",
+            "type": "internal",
             "status": "ok",
             "from": "src/routes/history.tsx"
           },
           {
             "url": "https://ambient-voice-flow.lovable.app/",
-            "type": "external",
+            "type": "internal",
             "status": "ok",
             "from": "src/routes/index.tsx"
           },
           {
             "url": "https://ambient-voice-flow.lovable.app/prompt-lab",
-            "type": "external",
+            "type": "internal",
             "status": "ok",
             "from": "src/routes/prompt-lab.tsx"
           },
           {
             "url": "https://ambient-voice-flow.lovable.app/reception",
-            "type": "external",
+            "type": "internal",
             "status": "ok",
             "from": "src/routes/reception.tsx"
           },
           {
             "url": "https://ambient-voice-flow.lovable.app/seo-report",
-            "type": "external",
-            "status": "broken",
-            "from": "src/routes/seo-report.tsx",
-            "note": "HTTP 404"
+            "type": "internal",
+            "status": "ok",
+            "from": "src/routes/seo-report.tsx"
           },
           {
             "url": "https://ambient-voice-flow.lovable.app/settings",
-            "type": "external",
+            "type": "internal",
             "status": "ok",
             "from": "src/routes/settings.tsx"
+          },
+          {
+            "url": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@300;400;500;600&display=swap",
+            "type": "external",
+            "status": "ok",
+            "from": "src/routes/__root.tsx"
           }
         ]
       },
       "name": "link-check",
-      "ranAt": "2026-09-20T17:04:35.129Z"
+      "ranAt": "2026-09-20T17:05:50.491Z"
     },
     "lighthouse": {
       "label": "Lighthouse CI",
-      "status": "fail",
-      "summary": "performance 56 · accessibility 98 · best-practices 100 · seo 100",
-      "issues": [
-        {
-          "route": "http://localhost:8080",
-          "rule": "performance",
-          "message": "performance scored 56 (threshold 70)"
-        }
-      ],
+      "status": "pass",
+      "summary": "performance 80 · accessibility 98 · best-practices 100 · seo 100",
+      "issues": [],
       "meta": {
         "thresholds": {
           "performance": 70,
@@ -149,16 +136,21 @@
           "seo": 90
         },
         "scores": {
-          "performance": 56,
+          "performance": 80,
           "accessibility": 98,
           "best-practices": 100,
           "seo": 100
         },
-        "url": "http://localhost:8080",
-        "previousScores": null
+        "url": "https://ambient-voice-flow.lovable.app",
+        "previousScores": {
+          "performance": 56,
+          "accessibility": 98,
+          "best-practices": 100,
+          "seo": 100
+        }
       },
       "name": "lighthouse",
-      "ranAt": "2026-08-30T19:45:32.419Z"
+      "ranAt": "2026-09-20T17:06:24.647Z"
     },
     "indexing": {
       "label": "Sitemap indexing status",
@@ -416,7 +408,19 @@
       "check": "indexing",
       "type": "regression",
       "key": "https://ambient-voice-flow.lovable.app/settings|indexing"
+    },
+    {
+      "at": "2026-09-20T17:05:50.491Z",
+      "check": "link-check",
+      "type": "fix",
+      "key": "src/routes/seo-report.tsx|external|https://ambient-voice-flow.lovable.app/seo-report failed (HTTP 404)"
+    },
+    {
+      "at": "2026-09-20T17:06:24.647Z",
+      "check": "lighthouse",
+      "type": "fix",
+      "key": "http://localhost:8080|performance|performance scored 56 (threshold 70)"
     }
   ],
-  "generatedAt": "2026-09-20T17:05:27.419Z"
+  "generatedAt": "2026-09-20T17:06:24.647Z"
 }

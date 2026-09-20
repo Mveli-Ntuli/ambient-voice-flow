@@ -1,13 +1,13 @@
 # SEO & quality artifacts
 
-Generated 2026-09-20T17:05:27.535Z — overall **FAIL**
+Generated 2026-09-20T17:06:37.822Z — overall **WARN**
 
 | Check | Status | Issues | Summary |
 | --- | --- | --- | --- |
 | Metadata, headings & canonicals | pass | 0 | 8 route(s) scanned — 0 issue(s), 0 regression(s) |
 | Structured data (JSON-LD) | warn | 3 | 4 JSON-LD node(s) across 2 route(s) — 0 error(s), 3 warning(s) |
-| Broken links & redirects | fail | 1 | 9 link(s) checked — 1 broken, 0 redirecting |
-| Lighthouse CI | fail | 1 | performance 56 · accessibility 98 · best-practices 100 · seo 100 |
+| Broken links & redirects | pass | 0 | 9 link(s) checked — 0 broken, 0 redirecting |
+| Lighthouse CI | pass | 0 | performance 80 · accessibility 98 · best-practices 100 · seo 100 |
 | Sitemap indexing status | warn | 6 | 7 sitemap URL(s) checked — 6 not indexed (0 past the 72h window), 0 from cache, 7 API call(s) |
 
 ## Files

@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-09-20T17:05:27.535Z",
+  "generatedAt": "2026-09-20T17:06:37.822Z",
   "site": "https://ambient-voice-flow.lovable.app",
   "commit": null,
-  "overallStatus": "fail",
+  "overallStatus": "warn",
   "checks": [
     {
       "name": "seo-check",
@@ -23,18 +23,18 @@
     {
       "name": "link-check",
       "label": "Broken links & redirects",
-      "status": "fail",
-      "summary": "9 link(s) checked — 1 broken, 0 redirecting",
-      "issues": 1,
-      "ranAt": "2026-09-20T17:04:35.129Z"
+      "status": "pass",
+      "summary": "9 link(s) checked — 0 broken, 0 redirecting",
+      "issues": 0,
+      "ranAt": "2026-09-20T17:05:50.491Z"
     },
     {
       "name": "lighthouse",
       "label": "Lighthouse CI",
-      "status": "fail",
-      "summary": "performance 56 · accessibility 98 · best-practices 100 · seo 100",
-      "issues": 1,
-      "ranAt": "2026-08-30T19:45:32.419Z"
+      "status": "pass",
+      "summary": "performance 80 · accessibility 98 · best-practices 100 · seo 100",
+      "issues": 0,
+      "ranAt": "2026-09-20T17:06:24.647Z"
     },
     {
       "name": "indexing",
