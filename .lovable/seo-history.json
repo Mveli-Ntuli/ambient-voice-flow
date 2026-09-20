@@ -137,6 +137,18 @@
       "check": "indexing",
       "type": "regression",
       "key": "https://ambient-voice-flow.lovable.app/settings|indexing"
+    },
+    {
+      "at": "2026-09-20T17:05:50.491Z",
+      "check": "link-check",
+      "type": "fix",
+      "key": "src/routes/seo-report.tsx|external|https://ambient-voice-flow.lovable.app/seo-report failed (HTTP 404)"
+    },
+    {
+      "at": "2026-09-20T17:06:24.647Z",
+      "check": "lighthouse",
+      "type": "fix",
+      "key": "http://localhost:8080|performance|performance scored 56 (threshold 70)"
     }
   ]
 }
