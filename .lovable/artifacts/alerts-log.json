@@ -1,0 +1,24 @@
+{
+  "deliveries": [
+    {
+      "at": "2026-09-20T17:04:35.132Z",
+      "check": "link-check",
+      "status": "fail",
+      "summary": "9 link(s) checked — 1 broken, 0 redirecting",
+      "results": [
+        {
+          "channel": "slack",
+          "ok": false,
+          "skipped": true,
+          "error": "no Slack credentials configured"
+        },
+        {
+          "channel": "email",
+          "ok": false,
+          "skipped": true,
+          "error": "RESEND_API_KEY is not set"
+        }
+      ]
+    }
+  ]
+}

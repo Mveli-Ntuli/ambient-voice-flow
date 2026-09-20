@@ -23,7 +23,7 @@
     "seo:artifacts": "node scripts/collect-artifacts.mjs",
     "seo:audit": "node scripts/seo-check.mjs && node scripts/schema-check.mjs && node scripts/link-check.mjs && node scripts/lighthouse-ci.mjs && node scripts/collect-artifacts.mjs",
     "seo:audit:strict": "node scripts/seo-check.mjs --strict && node scripts/schema-check.mjs --strict && node scripts/link-check.mjs --strict && node scripts/indexing-check.mjs --strict && node scripts/lighthouse-ci.mjs --url https://ambient-voice-flow.lovable.app --strict && node scripts/collect-artifacts.mjs",
-    "postbuild": "node scripts/seo-check.mjs && node scripts/schema-check.mjs && node scripts/link-check.mjs && node scripts/lighthouse-ci.mjs && node scripts/collect-artifacts.mjs",
+    "postbuild": "node scripts/seo-check.mjs && node scripts/schema-check.mjs && node scripts/link-check.mjs && node scripts/lighthouse-ci.mjs --url https://ambient-voice-flow.lovable.app && node scripts/collect-artifacts.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {

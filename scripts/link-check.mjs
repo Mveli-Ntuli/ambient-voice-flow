@@ -15,6 +15,7 @@ import { writeSection, readReport } from "./report-store.mjs";
 import { sendAlert } from "./alerts.mjs";
 
 const ROUTES_DIR = "src/routes";
+const SITE_URL = "https://ambient-voice-flow.lovable.app";
 const SRC_DIR = "src";
 const CSV_OUT = ".lovable/reports/link-check.csv";
 const strict = process.argv.includes("--strict");
@@ -91,11 +92,16 @@ const externals = [];
 
 for (const [url, sources] of links) {
   const from = [...sources].join(" ");
-  if (/^https?:\/\//.test(url)) {
+  // Same-origin absolute URLs (canonicals, og:url) are internal: validate them
+  // against the route table instead of probing the published site, which may
+  // not yet serve a newly added route.
+  const sameOrigin = url.startsWith(SITE_URL);
+  if (/^https?:\/\//.test(url) && !sameOrigin) {
     externals.push({ url, from });
     continue;
   }
-  const path = url.split(/[?#]/)[0];
+  const relative = sameOrigin ? url.slice(SITE_URL.length) || "/" : url;
+  const path = relative.split(/[?#]/)[0];
   if (PUBLIC_FILES.has(path)) {
     rows.push({ url, type: "asset", status: "ok", from });
     continue;
