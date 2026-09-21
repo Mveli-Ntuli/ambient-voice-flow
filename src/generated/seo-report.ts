@@ -158,37 +158,37 @@ export const seoReport: SeoReport = {
     "indexing": {
       "label": "Sitemap indexing status",
       "status": "warn",
-      "summary": "7 sitemap URL(s) checked — 6 not indexed (0 past the 72h window), 0 from cache, 7 API call(s)",
+      "summary": "7 sitemap URL(s) checked — 6 not indexed (0 past the 96h window), 0 from cache, 7 API call(s)",
       "issues": [
         {
           "route": "https://ambient-voice-flow.lovable.app/analytics",
           "rule": "not-indexed",
-          "message": "Not indexed (0h of 72h wait window) — URL is unknown to Google"
+          "message": "Not indexed (29h of 96h wait window) — URL is unknown to Google"
         },
         {
           "route": "https://ambient-voice-flow.lovable.app/history",
           "rule": "not-indexed",
-          "message": "Not indexed (0h of 72h wait window) — Discovered - currently not indexed"
+          "message": "Not indexed (29h of 96h wait window) — URL is unknown to Google"
         },
         {
           "route": "https://ambient-voice-flow.lovable.app/prompt-lab",
           "rule": "not-indexed",
-          "message": "Not indexed (0h of 72h wait window) — URL is unknown to Google"
+          "message": "Not indexed (29h of 96h wait window) — URL is unknown to Google"
         },
         {
           "route": "https://ambient-voice-flow.lovable.app/reception",
           "rule": "not-indexed",
-          "message": "Not indexed (0h of 72h wait window) — URL is unknown to Google"
+          "message": "Not indexed (29h of 96h wait window) — Discovered - currently not indexed"
         },
         {
           "route": "https://ambient-voice-flow.lovable.app/resources/ai-vs-traditional-cad",
           "rule": "not-indexed",
-          "message": "Not indexed (0h of 72h wait window) — URL is unknown to Google"
+          "message": "Not indexed (29h of 96h wait window) — URL is unknown to Google"
         },
         {
           "route": "https://ambient-voice-flow.lovable.app/settings",
           "rule": "not-indexed",
-          "message": "Not indexed (0h of 72h wait window) — URL is unknown to Google"
+          "message": "Not indexed (29h of 96h wait window) — Discovered - currently not indexed"
         }
       ],
       "meta": {
@@ -198,7 +198,7 @@ export const seoReport: SeoReport = {
             "coverageState": "Submitted and indexed",
             "lastCrawlTime": "2026-08-27T02:08:12Z",
             "firstSeenAt": "2026-09-20T17:04:35.235Z",
-            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-21T22:45:05.117Z",
             "fromCache": false,
             "error": null
           },
@@ -207,16 +207,16 @@ export const seoReport: SeoReport = {
             "coverageState": "URL is unknown to Google",
             "lastCrawlTime": null,
             "firstSeenAt": "2026-09-20T17:04:35.235Z",
-            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-21T22:45:05.117Z",
             "fromCache": false,
             "error": null
           },
           "https://ambient-voice-flow.lovable.app/history": {
             "verdict": "NEUTRAL",
-            "coverageState": "Discovered - currently not indexed",
+            "coverageState": "URL is unknown to Google",
             "lastCrawlTime": null,
             "firstSeenAt": "2026-09-20T17:04:35.235Z",
-            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-21T22:45:05.117Z",
             "fromCache": false,
             "error": null
           },
@@ -225,16 +225,16 @@ export const seoReport: SeoReport = {
             "coverageState": "URL is unknown to Google",
             "lastCrawlTime": null,
             "firstSeenAt": "2026-09-20T17:04:35.235Z",
-            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-21T22:45:05.117Z",
             "fromCache": false,
             "error": null
           },
           "https://ambient-voice-flow.lovable.app/reception": {
             "verdict": "NEUTRAL",
-            "coverageState": "URL is unknown to Google",
+            "coverageState": "Discovered - currently not indexed",
             "lastCrawlTime": null,
             "firstSeenAt": "2026-09-20T17:04:35.235Z",
-            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-21T22:45:05.117Z",
             "fromCache": false,
             "error": null
           },
@@ -243,23 +243,23 @@ export const seoReport: SeoReport = {
             "coverageState": "URL is unknown to Google",
             "lastCrawlTime": null,
             "firstSeenAt": "2026-09-20T17:04:35.235Z",
-            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-21T22:45:05.117Z",
             "fromCache": false,
             "error": null
           },
           "https://ambient-voice-flow.lovable.app/settings": {
             "verdict": "NEUTRAL",
-            "coverageState": "URL is unknown to Google",
+            "coverageState": "Discovered - currently not indexed",
             "lastCrawlTime": null,
             "firstSeenAt": "2026-09-20T17:04:35.235Z",
-            "checkedAt": "2026-09-20T17:04:35.235Z",
+            "checkedAt": "2026-09-21T22:45:05.117Z",
             "fromCache": false,
             "error": null
           }
         },
         "siteUrl": "https://ambient-voice-flow.lovable.app/",
         "config": {
-          "graceHours": 72,
+          "graceHours": 96,
           "cacheTtlHours": 12,
           "requestDelayMs": 400,
           "maxRetries": 4
@@ -270,7 +270,7 @@ export const seoReport: SeoReport = {
         "gateFailures": 0
       },
       "name": "indexing",
-      "ranAt": "2026-09-20T17:05:27.419Z"
+      "ranAt": "2026-09-21T22:45:54.214Z"
     }
   },
   "history": [
@@ -425,5 +425,5 @@ export const seoReport: SeoReport = {
       "key": "http://localhost:8080|performance|performance scored 56 (threshold 70)"
     }
   ],
-  "generatedAt": "2026-09-20T17:06:24.647Z"
+  "generatedAt": "2026-09-21T22:45:54.214Z"
 };

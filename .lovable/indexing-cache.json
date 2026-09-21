@@ -1,7 +1,7 @@
 {
   "entries": {
     "https://ambient-voice-flow.lovable.app/": {
-      "checkedAt": "2026-09-20T17:04:42.161Z",
+      "checkedAt": "2026-09-21T22:45:12.144Z",
       "result": {
         "verdict": "PASS",
         "coverageState": "Submitted and indexed",
@@ -11,7 +11,7 @@
       "error": false
     },
     "https://ambient-voice-flow.lovable.app/analytics": {
-      "checkedAt": "2026-09-20T17:04:49.331Z",
+      "checkedAt": "2026-09-21T22:45:19.058Z",
       "result": {
         "verdict": "NEUTRAL",
         "coverageState": "URL is unknown to Google",
@@ -21,17 +21,17 @@
       "error": false
     },
     "https://ambient-voice-flow.lovable.app/history": {
-      "checkedAt": "2026-09-20T17:04:56.367Z",
+      "checkedAt": "2026-09-21T22:45:25.986Z",
       "result": {
         "verdict": "NEUTRAL",
-        "coverageState": "Discovered - currently not indexed",
+        "coverageState": "URL is unknown to Google",
         "lastCrawlTime": null,
         "throttled": 0
       },
       "error": false
     },
     "https://ambient-voice-flow.lovable.app/prompt-lab": {
-      "checkedAt": "2026-09-20T17:05:03.389Z",
+      "checkedAt": "2026-09-21T22:45:33.135Z",
       "result": {
         "verdict": "NEUTRAL",
         "coverageState": "URL is unknown to Google",
@@ -41,17 +41,17 @@
       "error": false
     },
     "https://ambient-voice-flow.lovable.app/reception": {
-      "checkedAt": "2026-09-20T17:05:10.439Z",
+      "checkedAt": "2026-09-21T22:45:40.295Z",
       "result": {
         "verdict": "NEUTRAL",
-        "coverageState": "URL is unknown to Google",
+        "coverageState": "Discovered - currently not indexed",
         "lastCrawlTime": null,
         "throttled": 0
       },
       "error": false
     },
     "https://ambient-voice-flow.lovable.app/resources/ai-vs-traditional-cad": {
-      "checkedAt": "2026-09-20T17:05:20.434Z",
+      "checkedAt": "2026-09-21T22:45:47.237Z",
       "result": {
         "verdict": "NEUTRAL",
         "coverageState": "URL is unknown to Google",
@@ -61,10 +61,10 @@
       "error": false
     },
     "https://ambient-voice-flow.lovable.app/settings": {
-      "checkedAt": "2026-09-20T17:05:27.418Z",
+      "checkedAt": "2026-09-21T22:45:54.211Z",
       "result": {
         "verdict": "NEUTRAL",
-        "coverageState": "URL is unknown to Google",
+        "coverageState": "Discovered - currently not indexed",
         "lastCrawlTime": null,
         "throttled": 0
       },
