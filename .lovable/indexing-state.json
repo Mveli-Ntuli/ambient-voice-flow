@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-09-21T22:45:05.117Z",
+  "checkedAt": "2026-09-21T22:46:05.928Z",
   "config": {
     "graceHours": 96,
     "cacheTtlHours": 12,
@@ -12,8 +12,8 @@
       "coverageState": "Submitted and indexed",
       "lastCrawlTime": "2026-08-27T02:08:12Z",
       "firstSeenAt": "2026-09-20T17:04:35.235Z",
-      "checkedAt": "2026-09-21T22:45:05.117Z",
-      "fromCache": false,
+      "checkedAt": "2026-09-21T22:45:12.144Z",
+      "fromCache": true,
       "error": null
     },
     "https://ambient-voice-flow.lovable.app/analytics": {
@@ -21,8 +21,8 @@
       "coverageState": "URL is unknown to Google",
       "lastCrawlTime": null,
       "firstSeenAt": "2026-09-20T17:04:35.235Z",
-      "checkedAt": "2026-09-21T22:45:05.117Z",
-      "fromCache": false,
+      "checkedAt": "2026-09-21T22:45:19.058Z",
+      "fromCache": true,
       "error": null
     },
     "https://ambient-voice-flow.lovable.app/history": {
@@ -30,8 +30,8 @@
       "coverageState": "URL is unknown to Google",
       "lastCrawlTime": null,
       "firstSeenAt": "2026-09-20T17:04:35.235Z",
-      "checkedAt": "2026-09-21T22:45:05.117Z",
-      "fromCache": false,
+      "checkedAt": "2026-09-21T22:45:25.986Z",
+      "fromCache": true,
       "error": null
     },
     "https://ambient-voice-flow.lovable.app/prompt-lab": {
@@ -39,8 +39,8 @@
       "coverageState": "URL is unknown to Google",
       "lastCrawlTime": null,
       "firstSeenAt": "2026-09-20T17:04:35.235Z",
-      "checkedAt": "2026-09-21T22:45:05.117Z",
-      "fromCache": false,
+      "checkedAt": "2026-09-21T22:45:33.135Z",
+      "fromCache": true,
       "error": null
     },
     "https://ambient-voice-flow.lovable.app/reception": {
@@ -48,8 +48,8 @@
       "coverageState": "Discovered - currently not indexed",
       "lastCrawlTime": null,
       "firstSeenAt": "2026-09-20T17:04:35.235Z",
-      "checkedAt": "2026-09-21T22:45:05.117Z",
-      "fromCache": false,
+      "checkedAt": "2026-09-21T22:45:40.295Z",
+      "fromCache": true,
       "error": null
     },
     "https://ambient-voice-flow.lovable.app/resources/ai-vs-traditional-cad": {
@@ -57,8 +57,8 @@
       "coverageState": "URL is unknown to Google",
       "lastCrawlTime": null,
       "firstSeenAt": "2026-09-20T17:04:35.235Z",
-      "checkedAt": "2026-09-21T22:45:05.117Z",
-      "fromCache": false,
+      "checkedAt": "2026-09-21T22:45:47.237Z",
+      "fromCache": true,
       "error": null
     },
     "https://ambient-voice-flow.lovable.app/settings": {
@@ -66,8 +66,8 @@
       "coverageState": "Discovered - currently not indexed",
       "lastCrawlTime": null,
       "firstSeenAt": "2026-09-20T17:04:35.235Z",
-      "checkedAt": "2026-09-21T22:45:05.117Z",
-      "fromCache": false,
+      "checkedAt": "2026-09-21T22:45:54.211Z",
+      "fromCache": true,
       "error": null
     }
   }
