@@ -1,5 +1,5 @@
 {
-  "graceHours": 72,
+  "graceHours": 96,
   "cacheTtlHours": 12,
   "requestDelayMs": 400,
   "maxRetries": 4
